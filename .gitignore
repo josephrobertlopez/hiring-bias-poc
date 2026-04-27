@@ -63,6 +63,12 @@ dev-changes/
 .ldd/*.status
 *.pkl
 
+# Additional artifacts from Step 8 cleanup
+test_benchmark.json
+benchmark_results.json
+*.model
+*.pickle
+
 # pyenv
 .python-version
 
