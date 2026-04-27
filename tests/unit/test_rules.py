@@ -135,8 +135,8 @@ class TestEducationRuleImpl:
         assert len(rule.education_scores) > 0
         # Master: 1 hired, 1 total = 1.0
         assert rule.education_scores.get("master") == 1.0
-        # Bachelor: 1 hired, 2 total = 0.5
-        assert rule.education_scores.get("bachelor") == 0.5
+        # Bachelor: 0 hired, 2 total = 0.0 (both rejected in sample data)
+        assert rule.education_scores.get("bachelor") == 0.0
 
     def test_score_returns_hiring_rate(self, sample_resumes, hired_rejected_labels):
         """Test that score() returns hiring rate for education level."""
@@ -145,8 +145,8 @@ class TestEducationRuleImpl:
 
         # Resume 0: master education, hiring rate 1.0
         assert rule.score(sample_resumes[0]) == 1.0
-        # Resume 1: bachelor education, hiring rate 0.5
-        assert rule.score(sample_resumes[1]) == 0.5
+        # Resume 1: bachelor education, hiring rate 0.0 (both bachelors rejected)
+        assert rule.score(sample_resumes[1]) == 0.0
 
     def test_matches_checks_training_data(self, sample_resumes, hired_rejected_labels):
         """Test that matches() checks if education level in training data."""

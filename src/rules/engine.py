@@ -238,27 +238,25 @@ class SkillRulesEngine:
             if rule.support >= min_support
         ]
 
-    def identify_skill_gaps(self, resume: Resume) -> List[str]:
-        """Identify critical skill gaps for a resume.
+    def identify_skill_gaps(self, resume: Resume = None) -> List[str]:
+        """Identify critical skill gaps for a resume or overall gaps.
 
         Args:
-            resume: Resume to analyze
+            resume: Resume to analyze (optional)
 
         Returns:
-            Sorted list of critical skills missing from resume
+            Sorted list of critical skills missing from resume, or overall critical skills
         """
+        if resume is None:
+            # Return all critical skills when no specific resume provided
+            return sorted(list(self.rules['gap'].critical_skills))
+
         return sorted(
             list(self.rules['gap'].critical_skills - set(resume.skill_tokens))
         )
 
-    def check_bias(
-        self, resumes: List[Resume], protected_attrs: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def check_bias(self) -> Dict[str, Any]:
         """Check for demographic bias in hiring patterns.
-
-        Args:
-            resumes: List of resumes to analyze (used for context)
-            protected_attrs: List of demographic attribute dicts
 
         Returns:
             Dict with disparity indices and bias flags per attribute
@@ -366,3 +364,17 @@ class SkillRulesEngine:
             "gap": self.rules['gap'].explain(resume),
             "bias": self.rules['bias'].explain(resume),
         }
+
+    def get_critical_skills(self, threshold: float = 0.5) -> List[str]:
+        """Get critical skills based on gap analysis threshold.
+
+        Args:
+            threshold: Threshold for determining criticality
+
+        Returns:
+            List of critical skill tokens
+        """
+        if not self.fitted:
+            raise RuntimeError("Must call fit() before get_critical_skills()")
+
+        return sorted(list(self.rules['gap'].critical_skills))

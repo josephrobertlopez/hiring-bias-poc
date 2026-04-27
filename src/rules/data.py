@@ -63,13 +63,23 @@ class SkillTokenizer:
         """Extract skill tokens from resume text.
 
         Uses word boundaries to avoid false positives (e.g., "java" won't match "javascript").
+        Special handling for tokens with non-word characters like c++, c#, node.js.
         """
         found_skills = []
         text_lower = resume_text.lower()
 
         for token in self.vocabulary.tokens:
-            # Use word boundaries to avoid substring matches
-            pattern = r'\b' + re.escape(token.lower()) + r'\b'
+            token_lower = token.lower()
+
+            # Special handling for tokens with non-word characters
+            if re.search(r'[^\w]', token_lower):
+                # For tokens like "c++", "c#", "node.js", use exact matching with optional boundaries
+                # Look for the token surrounded by non-alphanumeric chars or start/end of string
+                pattern = r'(?<!\w)' + re.escape(token_lower) + r'(?!\w)'
+            else:
+                # Use standard word boundaries for regular tokens
+                pattern = r'\b' + re.escape(token_lower) + r'\b'
+
             if re.search(pattern, text_lower):
                 found_skills.append(token)
 

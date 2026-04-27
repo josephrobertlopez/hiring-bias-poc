@@ -186,7 +186,7 @@ def step_check_json_serializable(context):
         # Try to serialize the results
         json.dumps(context.baseline_results, default=str)
     except Exception as e:
-        raise AssertionError(f"Results not JSON-serializable: {e}")
+        raise AssertionError(f"Results not JSON-serializable: {e}") from e
 
 
 @given('a benchmark suite with fixed random seed 42')
