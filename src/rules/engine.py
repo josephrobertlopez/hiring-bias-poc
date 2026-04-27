@@ -81,8 +81,6 @@ class SkillRulesEngine:
         }
 
         self.fitted = False
-        self._training_labels: Optional[List[bool]] = None
-        self._training_resumes: Optional[List[Resume]] = None
 
     def fit(self, resumes: List[Resume], labels: List[bool]) -> "SkillRulesEngine":
         """Train all rule types on historical data.
@@ -104,8 +102,6 @@ class SkillRulesEngine:
         self.rules['bias'].fit(resumes, labels)
 
         self.fitted = True
-        self._training_labels = labels
-        self._training_resumes = resumes
         return self
 
     def audit_resume(self, resume: Resume, resume_id: str = "unknown") -> SkillAuditResult:
@@ -124,8 +120,6 @@ class SkillRulesEngine:
         """
         if not self.fitted:
             raise RuntimeError("Must call fit() before audit_resume()")
-        if self._training_resumes is None:
-            raise RuntimeError("Training data not available")
 
         # Run all 6 rules and collect scores
         rule_scores = {
@@ -172,9 +166,9 @@ class SkillRulesEngine:
                         hiring_rates.append(rate)
 
                 # Check for disparity index violation
-                # Use more lenient threshold for small samples (< 10 candidates)
+                # Use standard threshold (training size no longer stored to prevent leakage)
                 if hiring_rates:
-                    threshold = 0.7 if len(self._training_resumes) < 10 else 0.8
+                    threshold = 0.8  # Standard bias detection threshold
                     di_result = compute_disparity_index(hiring_rates, threshold)
                     if di_result["bias_detected"]:
                         bias_flags.append(f"demographic parity violation in {attr_key}")
