@@ -99,13 +99,15 @@ class CounterfactualAnalyzer:
     def analyze_counterfactual_fairness(self,
                                       resumes: List[Resume],
                                       model_predict_fn,
-                                      threshold: float = 0.05) -> Dict[str, CounterfactualResult]:
+                                      threshold: float = 0.05,
+                                      feature_extractor=None) -> Dict[str, CounterfactualResult]:
         """Analyze counterfactual fairness across protected attributes.
 
         Args:
             resumes: List of resumes to analyze
             model_predict_fn: Function that takes resume and returns probability
             threshold: Maximum acceptable p95 flip rate
+            feature_extractor: Optional extractor to verify feature vector changes
 
         Returns:
             Dictionary mapping attribute_name -> CounterfactualResult
@@ -115,7 +117,7 @@ class CounterfactualAnalyzer:
         # Analyze each protected attribute
         for attr_name in ['gender', 'race', 'ethnicity']:
             comparisons = self._generate_counterfactual_comparisons(
-                resumes, attr_name, model_predict_fn
+                resumes, attr_name, model_predict_fn, feature_extractor
             )
 
             if comparisons:
@@ -129,13 +131,15 @@ class CounterfactualAnalyzer:
     def _generate_counterfactual_comparisons(self,
                                            resumes: List[Resume],
                                            attribute_name: str,
-                                           model_predict_fn) -> List[CounterfactualComparison]:
+                                           model_predict_fn,
+                                           feature_extractor=None) -> List[CounterfactualComparison]:
         """Generate counterfactual comparisons for a specific attribute.
 
         Args:
             resumes: List of resumes
             attribute_name: Name of protected attribute to swap
             model_predict_fn: Prediction function
+            feature_extractor: Optional extractor to verify feature vector changes
 
         Returns:
             List of counterfactual comparisons
@@ -151,6 +155,12 @@ class CounterfactualAnalyzer:
             # Skip if no meaningful counterfactual could be created
             if counterfactual_resume is None:
                 continue
+
+            # Verify that feature vectors actually changed (if extractor provided)
+            if feature_extractor is not None:
+                if not self._verify_feature_vector_change(resume, counterfactual_resume, feature_extractor):
+                    # Skip if feature vectors are identical - swap had no effect
+                    continue
 
             # Get predictions for both versions
             try:
@@ -194,6 +204,61 @@ class CounterfactualAnalyzer:
                 continue
 
         return comparisons
+
+    def _verify_feature_vector_change(self, original_resume: Resume, counterfactual_resume: Resume,
+                                     feature_extractor) -> bool:
+        """Verify that counterfactual swap actually changed the feature vectors.
+
+        Args:
+            original_resume: Original resume
+            counterfactual_resume: Swapped resume
+            feature_extractor: Feature extractor to generate vectors
+
+        Returns:
+            True if feature vectors are different, False if identical
+        """
+        try:
+            # Extract feature vectors for both resumes
+            original_features = feature_extractor.extract_features(original_resume)
+            counterfactual_features = feature_extractor.extract_features(counterfactual_resume)
+
+            # Handle different return types
+            if isinstance(original_features, dict) and isinstance(counterfactual_features, dict):
+                # Dictionary features - compare key by key
+                if set(original_features.keys()) != set(counterfactual_features.keys()):
+                    return True  # Different keys = different vectors
+
+                for key in original_features.keys():
+                    orig_val = original_features[key]
+                    counter_val = counterfactual_features[key]
+
+                    # Handle numeric comparisons
+                    if isinstance(orig_val, (int, float)) and isinstance(counter_val, (int, float)):
+                        if not np.isclose(orig_val, counter_val, atol=1e-10):
+                            return True  # Found a difference
+                    else:
+                        if orig_val != counter_val:
+                            return True  # Found a difference
+
+                # All features identical
+                return False
+
+            elif hasattr(original_features, 'toarray'):  # Sparse matrix
+                original_array = original_features.toarray()
+                counterfactual_array = counterfactual_features.toarray()
+                vectors_identical = np.allclose(original_array, counterfactual_array, atol=1e-10)
+                return not vectors_identical
+
+            else:  # Dense array/list
+                original_array = np.array(original_features)
+                counterfactual_array = np.array(counterfactual_features)
+                vectors_identical = np.allclose(original_array, counterfactual_array, atol=1e-10)
+                return not vectors_identical
+
+        except Exception:
+            # If feature extraction fails, assume vectors are different
+            # This allows analysis to continue even if verification fails
+            return True
 
     def _create_counterfactual_resume(self,
                                     resume: Resume,
@@ -318,7 +383,8 @@ class CounterfactualAnalyzer:
                                  resumes: List[Resume],
                                  attribute_name: str,
                                  model_predict_fn,
-                                 threshold: float = 0.05) -> CounterfactualResult:
+                                 threshold: float = 0.05,
+                                 feature_extractor=None) -> CounterfactualResult:
         """Analyze counterfactual fairness for a specific attribute.
 
         Args:
@@ -326,12 +392,13 @@ class CounterfactualAnalyzer:
             attribute_name: Specific protected attribute ('gender', 'race', etc.)
             model_predict_fn: Prediction function
             threshold: Gate threshold
+            feature_extractor: Optional extractor to verify feature vector changes
 
         Returns:
             CounterfactualResult for the attribute
         """
         comparisons = self._generate_counterfactual_comparisons(
-            resumes, attribute_name, model_predict_fn
+            resumes, attribute_name, model_predict_fn, feature_extractor
         )
 
         return self._calculate_counterfactual_metrics(
@@ -342,7 +409,8 @@ class CounterfactualAnalyzer:
                                resumes: List[Resume],
                                attribute_name: str,
                                model_predict_fn,
-                               top_k: int = 10) -> List[CounterfactualComparison]:
+                               top_k: int = 10,
+                               feature_extractor=None) -> List[CounterfactualComparison]:
         """Get detailed counterfactual comparisons for analysis.
 
         Args:
@@ -350,12 +418,13 @@ class CounterfactualAnalyzer:
             attribute_name: Protected attribute to analyze
             model_predict_fn: Prediction function
             top_k: Number of top differences to return
+            feature_extractor: Optional extractor to verify feature vector changes
 
         Returns:
             List of top-k comparisons sorted by score difference
         """
         comparisons = self._generate_counterfactual_comparisons(
-            resumes, attribute_name, model_predict_fn
+            resumes, attribute_name, model_predict_fn, feature_extractor
         )
 
         # Sort by score difference (largest first)

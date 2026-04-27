@@ -187,7 +187,7 @@ class KaggleBenchmarkEvaluator:
 
         cf_analyzer = CounterfactualAnalyzer()
         cf_results = cf_analyzer.analyze_counterfactual_fairness(
-            test_resumes, predict_fn, threshold=0.05
+            test_resumes, predict_fn, threshold=0.05, feature_extractor=extractor
         )
 
         # Convert counterfactual results to serializable format
