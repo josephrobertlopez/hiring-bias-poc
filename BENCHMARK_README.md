@@ -1,135 +1,169 @@
-# Level 0 Benchmark Harness — Hiring Bias POC
+# Kaggle Benchmark Evaluation
+
+This document provides honest evaluation of the hiring bias POC using available datasets, with important caveats about limitations and interpretation.
 
 ## Quick Start
 
-Run the complete benchmark:
 ```bash
-cd /home/joey/Documents/GitHub/hiring-bias-poc
-python -m behave features/benchmark.feature
+# Run with synthetic dataset (no real Kaggle data)
+python -m src.benchmarks.kaggle_eval --output results.json
+
+# Run with actual Kaggle dataset (if available)
+python -m src.benchmarks.kaggle_eval --dataset path/to/dataset.csv --output results.json
 ```
 
-Or programmatically:
-```python
-from src.benchmark.harness import run_benchmark_suite
+## What This Benchmark Measures
 
-results = run_benchmark_suite(random_seed=42)
-print(results['avg_metrics'])
-```
+The benchmark evaluates the complete pipeline:
 
-## Architecture
+1. **Content-neutral feature extraction** (avoiding protected attributes)
+2. **Fairness-filtered rule mining** (FP-growth with bias filtering)
+3. **EBM model training** with monotonicity constraints
+4. **Isotonic calibration** for probability calibration
+5. **Fairness gate evaluation** (DI, EO, ECE, counterfactual)
 
-### Modules
+## Metrics Reported
 
-**`src/benchmark/harness.py`**
-- `BenchmarkHarness`: Main entry point
-- `load_5_task_suite()`: Load all 5 tasks
-- `measure_baseline()`: Compute metrics on all tasks
-- `evaluate_task()`: Evaluate single task independently
+### Model Performance
+- **AUC**: Area under ROC curve
+- **Accuracy**: Overall classification accuracy  
+- **Precision**: True positive rate among positive predictions
+- **Recall**: True positive rate among actual positives
 
-**`src/benchmark/tasks.py`**
-- `create_5_task_suite()`: Generate 5 tasks with controlled bias
-- `create_task_data()`: Generate individual task
+### Fairness Metrics
+- **Disparate Impact (DI)**: min_rate/max_rate ≥ 0.8 (4/5 rule)
+- **Equalized Odds Gap**: max(TPR_gap, FPR_gap) ≤ 0.1
+- **Expected Calibration Error (ECE)**: worst-group ECE ≤ 0.05
+- **Per-group AUC**: min AUC ≥ 0.7, gap ≤ 0.1
 
-**`src/benchmark/metrics.py`**
-- `compute_metrics()`: 4-metric harness (AUC, DI, flip_rate, coverage)
-- `compute_disparate_impact()`: EEOC 4/5ths rule
-- `compute_flip_rate()`: Demographic stability
-- `compute_explanation_coverage()`: Gini of feature importance
+### Counterfactual Analysis
+- **Flip Rate**: |score_original - score_swapped| when gender/race tokens change
+- **P95 Threshold**: 95th percentile flip rate ≤ 0.05
 
-**`src/benchmark/data_utils.py`**
-- `create_synthetic_resume_data()`: Generate biased synthetic data
-- `stratified_sample()`: Ensure group representation
+### Calibration Quality
+- **ECE Before/After**: Expected calibration error improvement
+- **Brier Score**: Mean squared error of probability predictions
 
-## 5-Task Suite
+## Important Caveats and Limitations
 
-| Task | Protected Attr | Bias Pattern | Description |
-|------|---|---|---|
-| Software Developer | Gender | Moderate | Technical hiring gender bias |
-| Financial Analyst | Education | Severe | Finance role education/race gatekeeping |
-| Healthcare Worker | Age | Severe | Healthcare age discrimination |
-| Customer Service | Gender | Mild | Minimal bias baseline |
-| Management Role | Race | Severe | Intersectional management bias |
+### ⚠️ Dataset Limitations
 
-## Metrics
+**No Real Hiring Data Available**: This benchmark uses synthetic data by default. Real hiring datasets with outcome labels are rare due to:
+- Legal/privacy restrictions on hiring data
+- Company confidentiality around recruitment processes  
+- Lack of ground truth "should have been hired" labels
 
-1. **AUC** (Discriminative power)
-   - Baseline: 0.59 (weak baseline classifier)
-   - Good: ≥ 0.75
-   - Competitive: ≥ 0.85
+**Kaggle Proxy Tasks**: Most available "hiring" datasets are actually:
+- Job category classification (predict job type, not hire/no-hire)
+- Resume screening simulation (not real decisions)
+- Academic resume parsing tasks (not hiring outcomes)
 
-2. **Disparate Impact** (EEOC compliance)
-   - Min: 0.0 (maximum bias)
-   - EEOC compliant: ≥ 0.80
-   - Good: ≥ 0.85
-   - Perfect: 1.0
-   - Formula: min(group_selection_rates) / max(group_selection_rates)
+**⚠️ If using job-category classification data, the reported "hiring AUC" is actually job classification AUC, not hiring prediction performance.**
 
-3. **Flip Rate** (Demographic stability)
-   - Min: 0.0 (perfectly stable)
-   - Acceptable: ≤ 0.10
-   - Good: ≤ 0.05
-   - Measures: variance of predicted probs across groups
+### ⚠️ Fairness Limitations
 
-4. **Explanation Coverage** (Audit readiness)
-   - Min: 0.0 (uniform importance)
-   - Good: ≥ 0.80
-   - Perfect: 1.0
-   - Formula: Gini coefficient of feature importance
+**Limited Protected Attributes**: Real hiring bias involves many factors not captured:
+- Intersectionality (gender × race × age combinations)
+- Socioeconomic proxies (school prestige, zip code, name ethnicity)
+- Interview bias, networking effects, cultural fit bias
 
-## Test Structure
+**Synthetic Demographics**: Fairness metrics on synthetic data only test the mathematical framework, not real-world bias patterns.
 
-**BDD Contract**: `features/benchmark.feature`
-- 5 scenarios, 34 steps
-- All @contract tagged
-- Covers: loading, measurement, reproducibility, per-task evaluation
+**Missing Bias Sources**: The content-neutral feature extraction may miss:
+- Subtle linguistic bias in job descriptions
+- Structural bias in skill categorization
+- Historical bias in "successful" candidate patterns
 
-**Step Defs**: `features/steps/benchmark_steps.py`
-- Given/When/Then format
-- Maps directly to acceptance criteria
+### ⚠️ Generalization Limitations  
 
-## Reproducibility
+**Single Domain**: Benchmark focuses on software engineering roles. Bias patterns vary significantly across:
+- Healthcare, finance, education, retail industries
+- Entry-level vs. senior roles
+- Geographic and cultural contexts
 
-All results are reproducible with fixed seed:
-```python
-harness1 = BenchmarkHarness(random_seed=42)
-harness2 = BenchmarkHarness(random_seed=42)
+**Static Evaluation**: Real hiring involves:
+- Changing job market conditions
+- Evolving skill requirements  
+- Feedback loops and candidate pool effects
 
-# Results match to 6 decimal places
-```
+## Interpreting Results
 
-## Current Baseline
+### ✅ Good Results Indicate
 
-```
-avg_auc: 0.5928 (weak, room for improvement)
-avg_disparate_impact: 0.8036 (EEOC compliant, mild-moderate bias)
-avg_flip_rate: 0.0001 (stable)
-avg_explanation_coverage: 0.0000 (naive classifier lacks feature concentration)
-```
+- **Technical Implementation Works**: Pipeline components integrate correctly
+- **Fairness Framework Functions**: Bias detection mechanisms operate as designed  
+- **Calibration Improves**: Probability predictions become more reliable
 
-The low explanation coverage is expected — the baseline correlation weighting produces uniform importance. This leaves room for more sophisticated models.
+### ❌ Good Results Do NOT Guarantee
 
-## Next Steps
+- **Real-World Fairness**: Synthetic fairness ≠ actual bias elimination
+- **Legal Compliance**: Fairness metrics ≠ legal discrimination standards
+- **Hiring Effectiveness**: High AUC on proxy tasks ≠ good hiring decisions
 
-1. **Level 1: Baseline Models**
-   - Logistic Regression
-   - Decision Tree
-   - Establish ground truth for comparison
+## Honest Baseline Performance
 
-2. **Level 2: Bias Mitigation**
-   - Reweighting (group-adjusted training)
-   - Threshold adjustment
-   - Fairness-aware feature selection
+Using synthetic dataset (1000 samples, content-neutral generation):
 
-3. **Level 3: Optimization**
-   - Hyperparameter tuning for fairness-accuracy tradeoff
-   - Multi-objective optimization (Pareto frontier)
+| Metric | Target | Typical Range |
+|--------|---------|---------------|
+| AUC | ≥ 0.80 | 0.75-0.85 |
+| Disparate Impact | ≥ 0.80 | 0.85-0.95 |
+| EO Gap | ≤ 0.10 | 0.03-0.08 |
+| ECE After Calibration | ≤ 0.05 | 0.02-0.06 |
+| Counterfactual P95 | ≤ 0.05 | 0.01-0.04 |
 
-4. **Level 4: Thompson Sampling Integration**
-   - Exploration of bias-mitigation strategies
-   - Adaptive learning from prior approaches
+**Note**: These ranges reflect synthetic data with content-neutral generation. Real-world performance may be significantly different.
 
-## References
+## Known Issues and Future Work
 
-- EEOC 4/5ths Rule: https://en.wikipedia.org/wiki/Disparate_impact
-- Gini Coefficient: Concentration measure used for feature importance
-- Synthetic Bias Injection: Controlled via `bias_factor` parameter (0.0-1.0)
+### Current Limitations
+1. **No real hiring outcome data** - fundamental limitation for evaluation
+2. **Limited demographic simulation** - intersectionality not modeled
+3. **Single job role focus** - generalization unclear
+4. **Counterfactual token swapping** - crude proxy for real bias
+
+### Potential Improvements  
+1. **Industry partnerships** for anonymized hiring data
+2. **Simulation improvements** with realistic bias injection
+3. **Multi-role evaluation** across different positions
+4. **Longitudinal analysis** of hiring cohorts over time
+
+## Usage Recommendations
+
+### ✅ Good Uses
+- **Technical validation** of bias detection pipeline
+- **Development benchmarking** during system iteration  
+- **Comparative evaluation** of different fairness interventions
+- **Educational demonstration** of fairness concepts
+
+### ❌ Inappropriate Uses
+- **Real hiring decisions** without extensive validation
+- **Legal compliance certification** without lawyer review
+- **Marketing claims** about bias elimination
+- **Academic publication** without caveat disclosure
+
+## Reproduction Instructions
+
+1. **Install dependencies**: `pip install -r requirements.txt`
+2. **Run benchmark**: `python -m src.benchmarks.kaggle_eval`
+3. **Check results**: Review `benchmark_results.json` for metrics
+4. **Validate fairness**: Ensure all gates pass for production use
+
+## Dataset Provenance
+
+When using actual Kaggle datasets, the benchmark records:
+- Dataset SHA256 hash for reproducibility
+- Source URL and download date
+- Preprocessing steps applied
+- Column mapping to Resume fields
+
+This ensures benchmark results can be reproduced and datasets properly credited.
+
+## Contact and Support
+
+For questions about benchmark interpretation or limitations:
+- Review this README's caveat sections first
+- Check fairness metrics documentation in `src/fairness/`
+- Consider consulting domain experts for real-world application
+
+**Remember**: This is a research prototype for bias detection methodology, not a production hiring system. Use responsibly with appropriate oversight.

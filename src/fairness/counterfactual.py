@@ -207,43 +207,44 @@ class CounterfactualAnalyzer:
         Returns:
             Counterfactual resume or None if no swap possible
         """
-        # Deep copy the resume
-        counterfactual = copy.deepcopy(resume)
-
         swapped = False
+        new_demographics = resume.demographics.copy()
+        new_skills = list(resume.skill_tokens)
+        new_domains = list(resume.domain_background)
 
         # Swap demographic attribute if present
-        if attribute_name in counterfactual.demographics:
-            original_value = counterfactual.demographics[attribute_name]
+        if attribute_name in new_demographics:
+            original_value = new_demographics[attribute_name]
             if attribute_name in self.attribute_swaps:
                 swap_map = self.attribute_swaps[attribute_name]
                 if original_value in swap_map:
-                    counterfactual.demographics[attribute_name] = swap_map[original_value]
+                    new_demographics[attribute_name] = swap_map[original_value]
                     swapped = True
 
         # Swap any gender/race tokens in skill list
         if attribute_name in ['gender', 'race', 'ethnicity']:
-            new_skills = []
-            for skill in counterfactual.skill_tokens:
+            for i, skill in enumerate(new_skills):
                 if skill in self.token_swaps:
-                    new_skills.append(self.token_swaps[skill])
+                    new_skills[i] = self.token_swaps[skill]
                     swapped = True
-                else:
-                    new_skills.append(skill)
-            counterfactual.skill_tokens = new_skills
 
             # Swap tokens in domain background
-            new_domains = []
-            for domain in counterfactual.domain_background:
+            for i, domain in enumerate(new_domains):
                 if domain in self.token_swaps:
-                    new_domains.append(self.token_swaps[domain])
+                    new_domains[i] = self.token_swaps[domain]
                     swapped = True
-                else:
-                    new_domains.append(domain)
-            counterfactual.domain_background = new_domains
 
         # Return counterfactual only if we made meaningful swaps
-        return counterfactual if swapped else None
+        if swapped:
+            return Resume(
+                skill_tokens=new_skills,
+                years_experience=resume.years_experience,
+                education_level=resume.education_level,
+                domain_background=new_domains,
+                demographics=new_demographics
+            )
+        else:
+            return None
 
     def _calculate_counterfactual_metrics(self,
                                         comparisons: List[CounterfactualComparison],
