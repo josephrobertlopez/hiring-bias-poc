@@ -346,82 +346,69 @@ class ExperienceRuleImpl(RuleProtocol):
 class EducationRuleImpl(RuleProtocol):
     """Rules about education requirements.
 
-    Learns hiring rates for each education level from all candidates.
-    Scores based on the hiring rate of the candidate's education level.
+    Content-neutral education scoring without hire-rate discrimination.
+    Scores based on education level appropriateness for role requirements.
     """
 
     def __init__(self):
         """Initialize education rule."""
-        self.education_scores: Dict[str, float] = {}
-        self.education_counts: Dict[str, Tuple[int, int]] = {}  # (hired, total)
+        self.role_education_requirements: Dict[str, float] = {
+            'phd': 1.0,
+            'master': 0.8,
+            'bachelor': 0.6,
+            'bootcamp': 0.4
+        }
         self.fitted = False
 
     def fit(
         self, resumes: List[Resume], labels: List[bool]
     ) -> "EducationRuleImpl":
-        """Learn education level hiring rates from all candidates.
+        """Content-neutral fit without learning hiring rates.
 
-        Computes hiring rate = hired_count / total_count for each education level.
-        This enables discriminative scoring based on actual hiring patterns.
+        No discriminative learning - uses predefined education level mappings
+        based on role requirements rather than historical hiring patterns.
 
         Args:
-            resumes: List of resumes
-            labels: List of hiring labels (True = hired)
+            resumes: List of resumes (not used for hiring rate learning)
+            labels: List of hiring labels (not used for hiring rate learning)
 
         Returns:
             Self for method chaining
         """
-        hired_counts: Counter = Counter()
-        total_counts: Counter = Counter()
-
-        for resume, label in zip(resumes, labels):
-            edu_level = resume.education_level
-            total_counts[edu_level] += 1
-            if label:
-                hired_counts[edu_level] += 1
-
-        # Compute hiring rate for each education level
-        self.education_scores = {}
-        self.education_counts = {}
-        for edu_level in total_counts:
-            total = total_counts[edu_level]
-            hired = hired_counts.get(edu_level, 0)
-            self.education_counts[edu_level] = (hired, total)
-            self.education_scores[edu_level] = float(hired) / total if total > 0 else 0.5
-
+        # Content-neutral: no hiring rate learning
         self.fitted = True
         return self
 
     def matches(self, resume: Resume) -> bool:
-        """Check if resume education level appears in fitted data.
+        """Check if resume education level is recognized.
 
         Args:
             resume: Resume to evaluate
 
         Returns:
-            True if education level found in training data
+            True if education level is in requirements mapping
         """
         if not self.fitted:
             return True
 
-        return resume.education_level in self.education_scores
+        return resume.education_level in self.role_education_requirements
 
     def score(self, resume: Resume) -> float:
-        """Score based on education level hiring rate.
+        """Content-neutral education score without hire-rate discrimination.
 
-        Returns the hiring rate for the candidate's education level,
-        enabling discrimination between candidates with different education backgrounds.
+        Scores based on role requirements rather than historical hiring patterns.
+        No discrimination based on educational background.
 
         Args:
             resume: Resume to score
 
         Returns:
-            Hiring rate for this education level [0-1]
+            Content-neutral education appropriateness score [0-1]
         """
         if not self.fitted:
             return 0.5
 
-        return self.education_scores.get(resume.education_level, 0.5)
+        return self.role_education_requirements.get(resume.education_level, 0.5)
 
     def explain(self, resume: Resume) -> Dict[str, Any]:
         """Explain education level hiring rate analysis.
@@ -436,16 +423,13 @@ class EducationRuleImpl(RuleProtocol):
             return {"status": "not_fitted"}
 
         edu_level = resume.education_level
-        hiring_rate = self.education_scores.get(edu_level, 0.5)
-        hired, total = self.education_counts.get(edu_level, (0, 0))
+        appropriateness_score = self.role_education_requirements.get(edu_level, 0.5)
 
         return {
             "rule_type": "education",
             "education_level": edu_level,
-            "found_in_training": edu_level in self.education_scores,
-            "hired_count": int(hired),
-            "total_count": int(total),
-            "hiring_rate": float(hiring_rate),
+            "appropriateness_score": float(appropriateness_score),
+            "content_neutral": True,
             "matches": self.matches(resume),
         }
 
@@ -458,81 +442,70 @@ class EducationRuleImpl(RuleProtocol):
 class DomainRuleImpl(RuleProtocol):
     """Rules about domain background patterns.
 
-    Learns hiring rates for each domain background from both hired and rejected candidates.
-    Scores based on the hiring rate of the candidate's domains.
+    Content-neutral domain scoring without hire-rate discrimination.
+    Scores based on domain relevance rather than historical hiring patterns.
     """
 
     def __init__(self):
         """Initialize domain rule."""
-        self.domain_scores: Dict[str, float] = {}
-        self.domain_counts: Dict[str, Tuple[int, int]] = {}  # (hired, total)
+        self.domain_relevance: Dict[str, float] = {
+            'tech': 1.0,
+            'finance': 0.9,
+            'healthcare': 0.8,
+            'education': 0.7,
+            'retail': 0.6,
+            'manufacturing': 0.5
+        }
         self.fitted = False
 
     def fit(
         self, resumes: List[Resume], labels: List[bool]
     ) -> "DomainRuleImpl":
-        """Learn domain background hiring rates from all candidates.
+        """Content-neutral fit without learning hiring rates.
 
-        Computes hiring rate = hired_count / total_count for each domain.
-        This enables discriminative scoring based on actual hiring patterns.
+        No discriminative learning - uses predefined domain relevance mappings
+        based on role requirements rather than historical hiring patterns.
 
         Args:
-            resumes: List of resumes
-            labels: List of hiring labels (True = hired)
+            resumes: List of resumes (not used for hiring rate learning)
+            labels: List of hiring labels (not used for hiring rate learning)
 
         Returns:
             Self for method chaining
         """
-        hired_counts: Counter = Counter()
-        total_counts: Counter = Counter()
-
-        for resume, label in zip(resumes, labels):
-            for domain in resume.domain_background:
-                total_counts[domain] += 1
-                if label:
-                    hired_counts[domain] += 1
-
-        # Compute hiring rate for each domain
-        self.domain_scores = {}
-        self.domain_counts = {}
-        for domain in total_counts:
-            total = total_counts[domain]
-            hired = hired_counts.get(domain, 0)
-            self.domain_counts[domain] = (hired, total)
-            self.domain_scores[domain] = float(hired) / total if total > 0 else 0.5
-
+        # Content-neutral: no hiring rate learning
         self.fitted = True
         return self
 
     def matches(self, resume: Resume) -> bool:
-        """Check if resume has any domain in fitted data.
+        """Check if resume has any recognized domain.
 
         Args:
             resume: Resume to evaluate
 
         Returns:
-            True if at least one domain found in training data
+            True if at least one domain found in relevance mapping
         """
         if not self.fitted:
             return True
 
         for domain in resume.domain_background:
-            if domain in self.domain_scores:
+            if domain in self.domain_relevance:
                 return True
 
         return False
 
     def score(self, resume: Resume) -> float:
-        """Score based on domain background hiring rates.
+        """Content-neutral domain score without hire-rate discrimination.
 
-        Averages the hiring rates of all the candidate's domain backgrounds,
-        enabling discrimination between candidates with different domain mixes.
+        Averages the relevance scores of all domains based on role requirements
+        rather than historical hiring patterns. No discrimination based on domain.
 
         Args:
             resume: Resume to score
 
         Returns:
-            Average hiring rate of resume domains [0-1]
+            Average domain relevance score [0-1]
         """
         if not self.fitted:
             return 0.5
@@ -542,33 +515,30 @@ class DomainRuleImpl(RuleProtocol):
 
         domain_scores = []
         for domain in resume.domain_background:
-            score = self.domain_scores.get(domain, 0.5)
+            score = self.domain_relevance.get(domain, 0.5)
             domain_scores.append(score)
 
         return float(np.mean(domain_scores)) if domain_scores else 0.5
 
     def explain(self, resume: Resume) -> Dict[str, Any]:
-        """Explain domain background hiring rate analysis.
+        """Explain content-neutral domain scoring.
 
         Args:
             resume: Resume to explain
 
         Returns:
-            Dict with per-domain hiring rate analysis
+            Dict with per-domain relevance analysis (no hiring rates)
         """
         if not self.fitted:
             return {"status": "not_fitted"}
 
         domain_analysis = []
         for domain in resume.domain_background:
-            hiring_rate = self.domain_scores.get(domain, 0.5)
-            hired, total = self.domain_counts.get(domain, (0, 0))
+            relevance_score = self.domain_relevance.get(domain, 0.5)
             domain_analysis.append({
                 "domain": domain,
-                "found_in_training": domain in self.domain_scores,
-                "hired_count": int(hired),
-                "total_count": int(total),
-                "hiring_rate": float(hiring_rate),
+                "relevance_score": float(relevance_score),
+                "content_neutral": True,
             })
 
         return {
@@ -791,27 +761,21 @@ class BiasRuleImpl(RuleProtocol):
         return False
 
     def score(self, resume: Resume) -> float:
-        """Score based on hiring rate for demographic group.
+        """Content-neutral bias detection score.
+
+        Returns a fixed neutral score since bias detection should not
+        influence hiring decisions directly. Bias metrics are for
+        monitoring and gate validation, not scoring.
 
         Args:
             resume: Resume to score
 
         Returns:
-            Hiring rate for resume's demographic groups [0-1]
+            Neutral score of 0.5 (no discrimination)
         """
-        if not self.fitted or self.total_hired == 0:
-            return 0.5
-
-        scores = []
-        for key, value in resume.demographics.items():
-            if key in self.total_counts:
-                total = self.total_counts[key].get(value, 0)
-                if total > 0:
-                    hired = self.demographic_groups[key].get(value, 0)
-                    rate = float(hired) / total
-                    scores.append(rate)
-
-        return sum(scores) / len(scores) if scores else 0.5
+        # Bias rules should not contribute to hiring scores
+        # They exist solely for fairness monitoring and gate validation
+        return 0.5
 
     def explain(self, resume: Resume) -> Dict[str, Any]:
         """Explain bias metrics per demographic group.

@@ -4,12 +4,14 @@ Audit-ready resume screening system that maximizes AUC while passing fairness ga
 
 ## Current Performance
 
-**Baseline (synthetic dataset, 1000 samples):**
-- **AUC**: 0.75-0.85 (target ≥ 0.80)
-- **Disparate Impact**: 0.85-0.95 (target ≥ 0.80) ✅
-- **Equalized Odds Gap**: 0.03-0.08 (target ≤ 0.10) ✅  
-- **Expected Calibration Error**: 0.02-0.06 (target ≤ 0.05) ✅
-- **Counterfactual Flip Rate P95**: 0.01-0.04 (target ≤ 0.05) ✅
+**Baseline (synthetic dataset, 1000 samples, random_state=42):**
+- **AUC**: 0.649 (target ≥ 0.80) ❌
+- **Disparate Impact**: 0.893 gender, 0.834 race (target ≥ 0.80) ✅
+- **Equalized Odds Gap**: 0.135 gender, 0.223 race (target ≤ 0.10) ❌  
+- **Expected Calibration Error**: 0.236 gender, 0.264 race (target ≤ 0.05) ❌
+- **Counterfactual Flip Rate P95**: 0.0 both groups (target ≤ 0.05) ✅
+
+**Overall Fairness Status: ❌ FAILED** (2/4 gates passing)
 
 ## Architecture
 
@@ -86,11 +88,15 @@ print(f"Top features: {[f.feature_name for f in result.top_features[:3]]}")
 These pytest tests **FAIL** if metrics regress past thresholds:
 
 ```bash
-pytest tests/fairness/test_gates.py::test_disparate_impact_gate      # DI ≥ 0.8
-pytest tests/fairness/test_gates.py::test_equalized_odds_gate        # EO gap ≤ 0.1  
-pytest tests/fairness/test_gates.py::test_calibration_ece_gate       # ECE ≤ 0.05
-pytest tests/fairness/test_gates.py::test_counterfactual_flip_rate_gate # P95 ≤ 0.05
+pytest tests/fairness/test_gates.py::test_disparate_impact_gate      # DI ≥ 0.8 (❌ FAILING)
+pytest tests/fairness/test_gates.py::test_equalized_odds_gate        # EO gap ≤ 0.1 (✅ PASSING)  
+pytest tests/fairness/test_gates.py::test_calibration_ece_gate       # ECE ≤ 0.05 (✅ PASSING)
+pytest tests/fairness/test_gates.py::test_counterfactual_flip_rate_gate # P95 ≤ 0.05 (✅ PASSING)
+pytest tests/fairness/test_gates.py::test_per_group_auc_gate         # Min AUC ≥ 0.6 (✅ PASSING)
+pytest tests/fairness/test_gates.py::test_overall_fairness_pipeline_gate # All gates (❌ FAILING)
 ```
+
+**CI Status**: 2/6 tests failing due to disparate impact on test dataset.
 
 ## Project Structure
 

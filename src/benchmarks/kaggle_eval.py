@@ -15,6 +15,21 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, recall_score
 
+
+class NumpyJSONEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy types."""
+
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
 from ..rules.data import Resume, SkillVocabulary
 from ..features.extractors import ContentNeutralExtractor, JobRole
 from ..features.rule_miner import FairnessFilteredRuleMiner, RuleMinerConfig
@@ -224,7 +239,7 @@ class KaggleBenchmarkEvaluator:
 
         # Save results
         with open(output_path, 'w') as f:
-            json.dump(asdict(result), f, indent=2)
+            json.dump(asdict(result), f, indent=2, cls=NumpyJSONEncoder)
 
         print(f"Benchmark complete. Results saved to {output_path}")
         self._print_summary(result)
