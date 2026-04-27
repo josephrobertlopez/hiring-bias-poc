@@ -1,0 +1,1 @@
+"""EBM-style model head and calibration for explainable hiring decisions."""
