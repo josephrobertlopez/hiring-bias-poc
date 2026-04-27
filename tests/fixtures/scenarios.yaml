@@ -1,0 +1,126 @@
+# Test scenarios extracted from pilot_validation.py
+# Each scenario tests specific hiring patterns and bias conditions
+
+data_science_role:
+  name: "Data Science Role"
+  description: "Senior data scientist hiring with ML skill requirements"
+  num_hired: 3
+  num_rejected: 2
+  expected_patterns:
+    - python
+    - machine_learning
+    - tensorflow
+  expected_gaps: []
+  expected_bias: false
+  success_criteria:
+    accuracy: 0.8
+    precision: 0.8
+    recall: 0.8
+    disparity_threshold: 0.9
+
+gender_bias_case:
+  name: "Gender Bias Detection"
+  description: "Clear gender bias scenario - all males hired, all females rejected"
+  num_hired: 2
+  num_rejected: 2
+  expected_patterns:
+    - python
+    - java
+  expected_gaps: []
+  expected_bias: true
+  success_criteria:
+    bias_detected: true
+    disparity_index: 0.0
+    min_threshold: 0.8
+
+education_discrimination:
+  name: "Education Level Discrimination"
+  description: "Bias based on education level (PhD favored over Bachelor)"
+  num_hired: 3
+  num_rejected: 3
+  expected_patterns:
+    - python
+    - sql
+  expected_gaps: []
+  expected_bias: true
+  success_criteria:
+    bias_detected: true
+    education_disparity: true
+    disparity_threshold: 0.7
+
+domain_preference:
+  name: "Domain Background Preference"
+  description: "Finance background preferred over healthcare/retail"
+  num_hired: 4
+  num_rejected: 2
+  expected_patterns:
+    - python
+    - sql
+    - finance
+  expected_gaps: []
+  expected_bias: true
+  success_criteria:
+    domain_disparity: true
+    disparity_threshold: 0.6
+
+skill_gap_scenario:
+  name: "Skill Gap Detection"
+  description: "Critical skill gaps identified in rejected candidates"
+  num_hired: 3
+  num_rejected: 2
+  expected_patterns:
+    - python
+    - machine_learning
+  expected_gaps:
+    - tensorflow
+    - deep_learning
+  expected_bias: false
+  success_criteria:
+    gap_detection_accuracy: 0.9
+    critical_skills_found: true
+    min_critical_skills: 1
+
+balanced_hiring:
+  name: "Balanced Hiring"
+  description: "Fair, unbiased hiring with balanced demographics"
+  num_hired: 5
+  num_rejected: 5
+  expected_patterns:
+    - python
+    - sql
+  expected_gaps: []
+  expected_bias: false
+  success_criteria:
+    disparity_index: 1.0
+    bias_detected: false
+    fairness_score: 0.95
+
+association_rules_mining:
+  name: "Association Rules Discovery"
+  description: "Test skill combination pattern mining"
+  num_hired: 4
+  num_rejected: 2
+  expected_patterns:
+    - python_sql
+    - python_machine_learning
+    - java_aws
+  expected_gaps: []
+  expected_bias: false
+  success_criteria:
+    min_rules_discovered: 2
+    min_confidence: 0.5
+    min_lift: 1.2
+
+extreme_disparity:
+  name: "Extreme Demographic Disparity"
+  description: "Test handling of 100% vs 0% hiring rates"
+  num_hired: 3
+  num_rejected: 3
+  expected_patterns:
+    - python
+  expected_gaps: []
+  expected_bias: true
+  success_criteria:
+    disparity_index: 0.0
+    bias_detected: true
+    extreme_case: true

@@ -1,0 +1,192 @@
+
+================================================================================
+INTEGRATION TEST REPORT
+================================================================================
+Timestamp: 2026-04-26T20:24:42.452360
+Random Seed: 42
+
+SUMMARY: 5/5 tests PASSED
+
+✓ Test 1: Complete Bias Detection Pipeline: PASS
+  Details: {
+  "task_name": "software_developer",
+  "ensemble_predictions": 200,
+  "demographic_parity": {
+    "point_estimate": 0.7635816054673926,
+    "lower_bound": 0.6487294727744166,
+    "upper_bound": 0.8770372100958039
+  },
+  "equalized_odds": {
+    "point_estimate": 0.0,
+    "lower_bound": 0.0,
+    "upper_bound": 0.0
+  },
+  "flip_rate": {
+    "rate": 0.0,
+    "flipped_records": 0,
+    "total_records": 200
+  },
+  "per_group_metrics": {
+    "0": 0.8640776699029126,
+    "1": 0.6597938144329897
+  }
+}
+
+✓ Test 2: Thompson Sampling + BCR Integration: PASS
+  Details: {
+  "n_decisions": 100,
+  "n_arms": 5,
+  "cumulative_regret": 11.55000000000001,
+  "arm_exploitation": {
+    "Python": 45,
+    "SQL": 8,
+    "Communication": 13,
+    "Leadership": 3,
+    "Domain_Expertise": 31
+  },
+  "posterior_means": {
+    "Python": 0.723404255319149,
+    "SQL": 0.5,
+    "Communication": 0.6,
+    "Leadership": 0.4,
+    "Domain_Expertise": 0.7878787878787878
+  }
+}
+
+✓ Test 3: Statistical Rigor Integration: PASS
+  Details: {
+  "n_tasks": 5,
+  "tasks_compared": [
+    "software_developer",
+    "financial_analyst",
+    "healthcare_worker",
+    "customer_service",
+    "management_role"
+  ],
+  "per_task_results": {
+    "software_developer": {
+      "lr_auc": 0.6969043253155,
+      "rf_auc": 1.0,
+      "auc_difference": 0.30309567468450005,
+      "lr_flip_rate": 0.0,
+      "rf_flip_rate": 0.0
+    },
+    "financial_analyst": {
+      "lr_auc": 0.6539123393055977,
+      "rf_auc": 1.0,
+      "auc_difference": 0.34608766069440233,
+      "lr_flip_rate": 0.0,
+      "rf_flip_rate": 0.0
+    },
+    "healthcare_worker": {
+      "lr_auc": 0.604949494949495,
+      "rf_auc": 1.0,
+      "auc_difference": 0.395050505050505,
+      "lr_flip_rate": 0.0,
+      "rf_flip_rate": 0.0
+    },
+    "customer_service": {
+      "lr_auc": 0.6578776041666667,
+      "rf_auc": 1.0,
+      "auc_difference": 0.34212239583333326,
+      "lr_flip_rate": 0.0,
+      "rf_flip_rate": 0.0
+    },
+    "management_role": {
+      "lr_auc": 0.6391033891033892,
+      "rf_auc": 1.0,
+      "auc_difference": 0.36089661089661085,
+      "lr_flip_rate": 0.0,
+      "rf_flip_rate": 0.0
+    }
+  },
+  "aggregate": {
+    "avg_auc_difference": 0.3494505694318703,
+    "max_auc_difference": 0.395050505050505,
+    "avg_flip_rate_difference": 0.0
+  }
+}
+
+✓ Test 4: Association Rules + Explainability: PASS
+  Details: {
+  "task_name": "software_developer",
+  "n_rules_discovered": 7,
+  "min_support_threshold": 0.05,
+  "min_confidence_threshold": 0.6,
+  "top_rules": [
+    {
+      "antecedents": "frozenset({'skill_2=low', 'skill_0=low'})",
+      "support": 0.17,
+      "confidence": 0.7906976744186046,
+      "lift": 1.2451931880607947
+    },
+    {
+      "antecedents": "frozenset({'skill_1=high', 'skill_0=low'})",
+      "support": 0.175,
+      "confidence": 0.7291666666666666,
+      "lift": 1.1482939632545932
+    },
+    {
+      "antecedents": "frozenset({'skill_1=high', 'skill_2=low'})",
+      "support": 0.195,
+      "confidence": 0.7222222222222222,
+      "lift": 1.137357830271216
+    }
+  ],
+  "group_coverage_summary": {
+    "0": 0.3825,
+    "1": 0.3957446808510638
+  }
+}
+
+✓ Test 5: Complete Measurement Harness: PASS
+  Details: {
+  "n_tasks": 5,
+  "task_names": [
+    "software_developer",
+    "financial_analyst",
+    "healthcare_worker",
+    "customer_service",
+    "management_role"
+  ],
+  "baseline_metrics": {
+    "avg_auc": 0.5927730831784397,
+    "avg_disparate_impact": 0.8036122526758792,
+    "avg_flip_rate": 0.00013445556914316333,
+    "avg_explanation_coverage": 0.0
+  },
+  "per_task_metrics": {
+    "software_developer": {
+      "auc": 0.5814906698306548,
+      "disparate_impact": 0.7351308485329103,
+      "flip_rate": 0.00013359830633220262,
+      "explanation_coverage": 0.0
+    },
+    "financial_analyst": {
+      "auc": 0.5943921449539428,
+      "disparate_impact": 0.820754716981132,
+      "flip_rate": 8.36518248228449e-05,
+      "explanation_coverage": 0.0
+    },
+    "healthcare_worker": {
+      "auc": 0.5692929292929293,
+      "disparate_impact": 0.839080459770115,
+      "flip_rate": 1.3192399884321535e-05,
+      "explanation_coverage": 0.0
+    },
+    "customer_service": {
+      "auc": 0.657986111111111,
+      "disparate_impact": 0.9166666666666667,
+      "flip_rate": 9.759714546735646e-05,
+      "explanation_coverage": 0.0
+    },
+    "management_role": {
+      "auc": 0.5607035607035608,
+      "disparate_impact": 0.7064285714285714,
+      "flip_rate": 0.00034423816920909115,
+      "explanation_coverage": 0.0
+    }
+  }
+}
+
+================================================================================
