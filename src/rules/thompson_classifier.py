@@ -51,7 +51,7 @@ class ThompsonRulesClassifier:
         for i, rule_name in enumerate(self.rule_names):
             alpha, beta = self.thompson_sampler.get_posterior_params(i)
             belief = self.thompson_sampler.skill_beliefs[i]
-            sampled_weight = belief.sample(self.thompson_sampler.random_state)
+            sampled_weight = belief.get_mean()  # Use posterior mean instead of random sample
             rule_weights[rule_name] = sampled_weight
             total_variance += belief.get_variance()
 
