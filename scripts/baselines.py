@@ -260,6 +260,16 @@ class BaselineDiagnostic:
         ebm = ExplainableBoostingClassifier(random_state=self.random_state)
         ebm.fit(X_train_combined, train_labels)
 
+        # STEP 6 DIAGNOSTIC: Print config for reconciliation with kaggle_eval.py
+        print(f"\n=== BASELINES.PY EBM_FULL DIAGNOSTIC ===")
+        print(f"Train/test split: {len(train_resumes)} train, {len(test_resumes)} test")
+        print(f"Number of features: {len(X_train_combined.columns)}")
+        print(f"Feature names: {sorted(X_train_combined.columns.tolist())}")
+        print(f"EBM config: random_state={self.random_state} (interpret defaults for others)")
+        print(f"Random state at fit: {self.random_state}")
+        print(f"Rule miner provided: True")
+        print(f"=======================================")
+
         # Predict and evaluate
         y_pred = ebm.predict_proba(X_test_combined)[:, 1]
         auc = roc_auc_score(test_labels, y_pred)
@@ -361,17 +371,108 @@ class BaselineDiagnostic:
             return f"mixed signals: logreg={auc_logreg:.3f}, ebm_raw={auc_ebm_raw:.3f}, ebm_full={auc_ebm_full:.3f} - multiple factors may be involved"
 
 
+def run_multi_seed_analysis(base_seed: int, n_seeds: int, output_path: str) -> Dict[str, Any]:
+    """Run baseline analysis across multiple seeds for noise bracketing."""
+    seeds = list(range(base_seed, base_seed + n_seeds))
+    all_results = []
+
+    for i, seed in enumerate(seeds):
+        print(f"\nSeed {i+1}/{n_seeds}: {seed}")
+        diagnostic = BaselineDiagnostic(random_state=seed)
+
+        # Run quietly (no individual prints)
+        temp_output = f"temp_baselines_{seed}.json"
+        result = diagnostic.run_diagnosis(temp_output)
+        all_results.append(result)
+
+        # Clean up temp file
+        import os
+        if os.path.exists(temp_output):
+            os.remove(temp_output)
+
+    # Compute statistics
+    pipelines = ['stratified_random', 'logreg_raw', 'ebm_raw', 'ebm_full']
+    multi_seed_stats = {}
+
+    for pipeline in pipelines:
+        aucs = [result['baseline_results'][pipeline]['auc'] for result in all_results]
+        multi_seed_stats[pipeline] = {
+            'mean': np.mean(aucs),
+            'std': np.std(aucs),
+            'min': np.min(aucs),
+            'max': np.max(aucs),
+            'aucs': aucs
+        }
+
+    # Save results with multi_seed_results key
+    final_result = all_results[0]  # Use first result as template
+    final_result['multi_seed_results'] = {
+        'seeds': seeds,
+        'n_seeds': n_seeds,
+        'pipeline_stats': multi_seed_stats
+    }
+
+    with open(output_path, 'w') as f:
+        json.dump(final_result, f, indent=2, cls=NumpyJSONEncoder)
+
+    print(f"\nMulti-seed results saved to {output_path}")
+    return final_result
+
+
+def print_multi_seed_summary(results: Dict[str, Any]):
+    """Print summary of multi-seed analysis."""
+    stats = results['multi_seed_results']['pipeline_stats']
+    n_seeds = results['multi_seed_results']['n_seeds']
+
+    print(f"\n{'='*80}")
+    print(f"MULTI-SEED ANALYSIS ({n_seeds} seeds)")
+    print(f"{'='*80}")
+    print(f"{'Pipeline':<20} {'Mean AUC':<10} {'±Std':<8} {'Min':<7} {'Max':<7}")
+    print(f"{'-'*60}")
+
+    for pipeline, stat in stats.items():
+        mean_auc = f"{stat['mean']:.3f}"
+        std_auc = f"±{stat['std']:.3f}"
+        min_auc = f"{stat['min']:.3f}"
+        max_auc = f"{stat['max']:.3f}"
+        print(f"{pipeline:<20} {mean_auc:<10} {std_auc:<8} {min_auc:<7} {max_auc:<7}")
+
+    # Analysis
+    ebm_raw_mean = stats['ebm_raw']['mean']
+    ebm_full_mean = stats['ebm_full']['mean']
+    diff = ebm_full_mean - ebm_raw_mean
+    ebm_full_std = stats['ebm_full']['std']
+
+    print(f"\nNOISE BRACKETING ANALYSIS:")
+    print(f"ebm_full - ebm_raw: {diff:.3f} (difference)")
+    print(f"ebm_full std: ±{ebm_full_std:.3f}")
+
+    if abs(diff) < ebm_full_std:
+        print(f"FINDING: Difference ({diff:.3f}) < 1σ ({ebm_full_std:.3f}) → rule features are neutral noise")
+    elif diff < -ebm_full_std:
+        print(f"FINDING: Difference ({diff:.3f}) < -1σ → rule features are genuinely harmful")
+    else:
+        print(f"FINDING: Difference ({diff:.3f}) > 1σ → rule features provide measurable signal")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run AUC baseline diagnosis")
     parser.add_argument("--output", default="baselines.json", help="Output JSON file")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--n-seeds", type=int, default=1, help="Number of seeds to run for noise bracketing")
 
     args = parser.parse_args()
 
-    diagnostic = BaselineDiagnostic(random_state=args.seed)
-    results = diagnostic.run_diagnosis(args.output)
-
-    print(f"\nDIAGNOSIS: {results['diagnosis']}")
+    if args.n_seeds == 1:
+        # Single-seed run (original behavior)
+        diagnostic = BaselineDiagnostic(random_state=args.seed)
+        results = diagnostic.run_diagnosis(args.output)
+        print(f"\nDIAGNOSIS: {results['diagnosis']}")
+    else:
+        # Multi-seed run for noise bracketing
+        print(f"Running {args.n_seeds}-seed noise bracketing...")
+        multi_seed_results = run_multi_seed_analysis(args.seed, args.n_seeds, args.output)
+        print_multi_seed_summary(multi_seed_results)
 
 
 if __name__ == "__main__":

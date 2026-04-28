@@ -131,6 +131,16 @@ class KaggleBenchmarkEvaluator:
         model = ExplainableBoostingModel(ebm_config)
         model.fit(train_resumes, train_labels, extractor, rule_miner)
 
+        # STEP 6 DIAGNOSTIC: Print config for reconciliation with baselines.py
+        print(f"\n=== KAGGLE_EVAL.PY DIAGNOSTIC ===")
+        print(f"Train/test split: {len(train_resumes)} train, {len(test_resumes)} test")
+        print(f"Number of features: {len(model.feature_names)}")
+        print(f"Feature names: {sorted(model.feature_names)}")
+        print(f"EBM config: n_estimators={ebm_config.n_estimators}, max_depth={ebm_config.max_depth}, learning_rate={ebm_config.learning_rate}")
+        print(f"Random state at fit: {ebm_config.random_state}")
+        print(f"Rule miner provided: {rule_miner is not None}")
+        print(f"==================================")
+
         # Get training predictions for calibration
         train_proba = model.predict_proba(train_resumes, extractor, rule_miner)[:, 1]
 
