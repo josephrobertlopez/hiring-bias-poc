@@ -6,7 +6,7 @@ from src.rules.data import Resume
 
 
 def test_education_rule_content_neutral():
-    """Verify EducationRuleImpl uses content-neutral scoring."""
+    """Verify EducationRuleImpl uses truly neutral scoring (no prestige bias)."""
     rule = EducationRuleImpl()
 
     # Should not learn hiring rates
@@ -18,21 +18,21 @@ def test_education_rule_content_neutral():
     assert not hasattr(rule, 'education_scores')
     assert not hasattr(rule, 'education_counts')
 
-    # Should use content-neutral scoring
+    # Should use completely neutral scoring - no prestige bias
     bachelor_resume = Resume(['python'], 3.0, 'bachelor', ['tech'], {})
     phd_resume = Resume(['python'], 3.0, 'phd', ['tech'], {})
 
     bachelor_score = rule.score(bachelor_resume)
     phd_score = rule.score(phd_resume)
 
-    # Scores should be based on role requirements, not hiring rates
-    assert bachelor_score == 0.6  # predefined appropriateness
-    assert phd_score == 1.0  # predefined appropriateness
-    assert bachelor_score != phd_score  # still meaningful differentiation
+    # All education levels get neutral score - let EBM handle as categorical
+    assert bachelor_score == 0.5  # neutral, no prestige bias
+    assert phd_score == 0.5  # neutral, no prestige bias
+    assert bachelor_score == phd_score  # truly equal treatment
 
 
 def test_domain_rule_content_neutral():
-    """Verify DomainRuleImpl uses content-neutral scoring."""
+    """Verify DomainRuleImpl uses truly neutral scoring (no domain bias)."""
     rule = DomainRuleImpl()
 
     # Should not learn hiring rates
@@ -44,17 +44,17 @@ def test_domain_rule_content_neutral():
     assert not hasattr(rule, 'domain_scores')
     assert not hasattr(rule, 'domain_counts')
 
-    # Should use content-neutral scoring
+    # Should use completely neutral scoring - no domain bias
     tech_resume = Resume(['python'], 3.0, 'bachelor', ['tech'], {})
     finance_resume = Resume(['python'], 3.0, 'bachelor', ['finance'], {})
 
     tech_score = rule.score(tech_resume)
     finance_score = rule.score(finance_resume)
 
-    # Scores should be based on domain relevance, not hiring rates
-    assert tech_score == 1.0  # predefined relevance
-    assert finance_score == 0.9  # predefined relevance
-    assert tech_score != finance_score  # still meaningful differentiation
+    # All domains get neutral score - let EBM handle as categorical
+    assert tech_score == 0.5  # neutral, no domain bias
+    assert finance_score == 0.5  # neutral, no domain bias
+    assert tech_score == finance_score  # truly equal treatment
 
 
 def test_no_hiring_rate_in_explanations():
@@ -76,13 +76,13 @@ def test_no_hiring_rate_in_explanations():
     assert 'hired_count' not in edu_explain
     assert 'total_count' not in edu_explain
 
-    # Should contain content-neutral data
-    assert 'appropriateness_score' in edu_explain
-    assert 'content_neutral' in edu_explain
+    # Should contain basic info without discriminatory scoring
+    assert 'rule_type' in edu_explain
+    assert 'education_level' in edu_explain
 
+    # Domain explanations should not contain hiring rates
+    assert 'domains' in domain_explain
     for domain_data in domain_explain['domains']:
         assert 'hiring_rate' not in domain_data
         assert 'hired_count' not in domain_data
         assert 'total_count' not in domain_data
-        assert 'relevance_score' in domain_data
-        assert 'content_neutral' in domain_data

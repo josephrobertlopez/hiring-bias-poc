@@ -394,21 +394,12 @@ class EducationRuleImpl(RuleProtocol):
         return resume.education_level in self.role_education_requirements
 
     def score(self, resume: Resume) -> float:
-        """Content-neutral education score without hire-rate discrimination.
+        """No scoring - education handled as categorical feature in EBM.
 
-        Scores based on role requirements rather than historical hiring patterns.
-        No discrimination based on educational background.
-
-        Args:
-            resume: Resume to score
-
-        Returns:
-            Content-neutral education appropriateness score [0-1]
+        Returns neutral score to avoid rule-level prestige bias.
+        Education level appears as one-hot categorical in feature extraction.
         """
-        if not self.fitted:
-            return 0.5
-
-        return self.role_education_requirements.get(resume.education_level, 0.5)
+        return 0.5
 
     def explain(self, resume: Resume) -> Dict[str, Any]:
         """Explain education level hiring rate analysis.
@@ -496,29 +487,12 @@ class DomainRuleImpl(RuleProtocol):
         return False
 
     def score(self, resume: Resume) -> float:
-        """Content-neutral domain score without hire-rate discrimination.
+        """No scoring - domain handled as categorical feature in EBM.
 
-        Averages the relevance scores of all domains based on role requirements
-        rather than historical hiring patterns. No discrimination based on domain.
-
-        Args:
-            resume: Resume to score
-
-        Returns:
-            Average domain relevance score [0-1]
+        Returns neutral score to avoid rule-level bias.
+        Domain background appears as one-hot categorical in feature extraction.
         """
-        if not self.fitted:
-            return 0.5
-
-        if not resume.domain_background:
-            return 0.5
-
-        domain_scores = []
-        for domain in resume.domain_background:
-            score = self.domain_relevance.get(domain, 0.5)
-            domain_scores.append(score)
-
-        return float(np.mean(domain_scores)) if domain_scores else 0.5
+        return 0.5
 
     def explain(self, resume: Resume) -> Dict[str, Any]:
         """Explain content-neutral domain scoring.

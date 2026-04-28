@@ -203,12 +203,19 @@ def test_counterfactual_flip_rate_gate(fairness_test_data, trained_model):
     vocab, role, extractor, resumes, labels = fairness_test_data
     model, extractor, rule_miner, calibrator, predict_fn = trained_model
 
-    # Analyze counterfactual fairness
+    # Analyze counterfactual fairness with feature verification
     analyzer = CounterfactualAnalyzer()
-    cf_results = analyzer.analyze_counterfactual_fairness(resumes, predict_fn, threshold=0.05)
+    cf_results = analyzer.analyze_counterfactual_fairness(resumes, predict_fn, threshold=0.05, feature_extractor=extractor)
 
     # GATE: p95 flip rate ≤ 0.05 for all protected attributes
     for attr_name, result in cf_results.items():
+        # NON-VACUOUS CHECK: Must have actual comparisons to be meaningful
+        assert result.total_comparisons > 0, (
+            f"{attr_name.title()} counterfactual gate is vacuous: "
+            f"0 comparisons made (all feature vectors identical). "
+            f"Inject demographic-correlated tokens or use different feature extractor."
+        )
+
         assert result.gate_passed, (
             f"{attr_name.title()} counterfactual gate failed: "
             f"p95 flip rate {result.flip_rate_p95:.3f} > 0.05. "

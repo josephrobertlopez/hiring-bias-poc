@@ -66,6 +66,7 @@ dev-changes/
 # Additional artifacts from Step 8 cleanup
 test_benchmark.json
 benchmark_results.json
+benchmark*.json
 *.model
 *.pickle
 

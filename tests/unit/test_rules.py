@@ -126,27 +126,14 @@ class TestExperienceRuleImpl:
 class TestEducationRuleImpl:
     """Test education level hiring patterns."""
 
-    def test_fit_learns_education_scores(self, sample_resumes, hired_rejected_labels):
-        """Test that fit() computes education hiring rates."""
+    def test_education_rule_neutral_scoring(self, sample_resumes, hired_rejected_labels):
+        """Test that education scoring is neutral (no prestige bias)."""
         rule = EducationRuleImpl()
         rule.fit(sample_resumes, hired_rejected_labels)
 
-        assert rule.fitted
-        assert len(rule.education_scores) > 0
-        # Master: 1 hired, 1 total = 1.0
-        assert rule.education_scores.get("master") == 1.0
-        # Bachelor: 0 hired, 2 total = 0.0 (both rejected in sample data)
-        assert rule.education_scores.get("bachelor") == 0.0
-
-    def test_score_returns_hiring_rate(self, sample_resumes, hired_rejected_labels):
-        """Test that score() returns hiring rate for education level."""
-        rule = EducationRuleImpl()
-        rule.fit(sample_resumes, hired_rejected_labels)
-
-        # Resume 0: master education, hiring rate 1.0
-        assert rule.score(sample_resumes[0]) == 1.0
-        # Resume 1: bachelor education, hiring rate 0.0 (both bachelors rejected)
-        assert rule.score(sample_resumes[1]) == 0.0
+        # All education levels should get neutral score
+        for resume in sample_resumes:
+            assert rule.score(resume) == 0.5
 
     def test_matches_checks_training_data(self, sample_resumes, hired_rejected_labels):
         """Test that matches() checks if education level in training data."""
@@ -158,42 +145,28 @@ class TestEducationRuleImpl:
         unknown = Resume(["python"], 3.0, "unknown_degree", ["tech"], {"gender": 0})
         assert not rule.matches(unknown)
 
-    def test_explain_shows_hiring_rate(self, sample_resumes, hired_rejected_labels):
-        """Test that explain() shows education stats."""
+    def test_explain_shows_education_info(self, sample_resumes, hired_rejected_labels):
+        """Test that explain() shows education info without hiring rates."""
         rule = EducationRuleImpl()
         rule.fit(sample_resumes, hired_rejected_labels)
 
         explanation = rule.explain(sample_resumes[0])
         assert explanation["rule_type"] == "education"
         assert explanation["education_level"] == "master"
-        assert explanation["hiring_rate"] == 1.0
+        # No hiring rate in neutral explanation
 
 
 class TestDomainRuleImpl:
     """Test domain background patterns."""
 
-    def test_fit_learns_domain_scores(self, sample_resumes, hired_rejected_labels):
-        """Test that fit() computes domain hiring rates."""
+    def test_domain_rule_neutral_scoring(self, sample_resumes, hired_rejected_labels):
+        """Test that domain scoring is neutral (no domain bias)."""
         rule = DomainRuleImpl()
         rule.fit(sample_resumes, hired_rejected_labels)
 
-        assert rule.fitted
-        assert len(rule.domain_scores) > 0
-        # finance: 1 hired, 1 total = 1.0
-        assert rule.domain_scores.get("finance") == 1.0
-        # tech: 0 hired, 1 total = 0.0
-        assert rule.domain_scores.get("tech") == 0.0
-
-    def test_score_averages_domains(self, sample_resumes, hired_rejected_labels):
-        """Test that score() averages hiring rates of all domains."""
-        rule = DomainRuleImpl()
-        rule.fit(sample_resumes, hired_rejected_labels)
-
-        # Resume 0: finance only, score = 1.0
-        assert rule.score(sample_resumes[0]) == 1.0
-
-        # Resume 1: tech only, score = 0.0
-        assert rule.score(sample_resumes[1]) == 0.0
+        # All domains should get neutral score
+        for resume in sample_resumes:
+            assert rule.score(resume) == 0.5
 
     def test_matches_checks_any_domain(self, sample_resumes, hired_rejected_labels):
         """Test that matches() returns true if any domain in training."""
@@ -287,18 +260,14 @@ class TestBiasRuleImpl:
         assert rule.demographic_groups["gender"][0] == 2  # Males hired
         assert rule.demographic_groups["gender"][1] == 0  # Females hired
 
-    def test_score_by_demographic_rate(self, bias_scenario_resumes, bias_imbalanced_labels):
-        """Test that score reflects demographic hiring rate."""
+    def test_bias_rule_neutral_scoring(self, bias_scenario_resumes, bias_imbalanced_labels):
+        """Test that bias rule provides neutral scoring (no discrimination)."""
         rule = BiasRuleImpl()
         rule.fit(bias_scenario_resumes, bias_imbalanced_labels)
 
-        # Male (gender=0): 2/2 = 1.0
-        male_score = rule.score(bias_scenario_resumes[0])
-        assert male_score == 1.0
-
-        # Female (gender=1): 0/2 = 0.0
-        female_score = rule.score(bias_scenario_resumes[1])
-        assert female_score == 0.0
+        # All resumes should get neutral score - bias detection is for monitoring, not scoring
+        for resume in bias_scenario_resumes:
+            assert rule.score(resume) == 0.5
 
     def test_detect_extreme_bias(self, bias_scenario_resumes, bias_imbalanced_labels):
         """Test that explain() detects extreme gender bias."""
