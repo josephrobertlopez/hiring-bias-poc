@@ -37,6 +37,8 @@ from ..model.ebm_head import ExplainableBoostingModel, EBMConfig
 from ..model.calibration import IsotonicCalibrator
 from ..fairness.metrics import FairnessMetricsCalculator
 from ..fairness.counterfactual import CounterfactualAnalyzer
+from ..posteriors.rule_reliability import fit_rule_posteriors
+from ..aptitude.scorer import score_candidate
 
 
 @dataclass
@@ -49,6 +51,7 @@ class BenchmarkResult:
     top_features: List[Dict[str, Any]]
     calibration_metrics: Dict[str, float]
     metadata: Dict[str, Any]
+    aptitude_summary: Optional[Dict[str, Any]] = None
 
 
 class KaggleBenchmarkEvaluator:
@@ -65,7 +68,8 @@ class KaggleBenchmarkEvaluator:
 
     def run_benchmark(self,
                      dataset_path: Optional[str] = None,
-                     output_path: str = "benchmark_results.json") -> BenchmarkResult:
+                     output_path: str = "benchmark_results.json",
+                     with_aptitude: bool = False) -> BenchmarkResult:
         """Run complete benchmark evaluation.
 
         Args:
@@ -211,6 +215,86 @@ class KaggleBenchmarkEvaluator:
                 "total_comparisons": result.total_comparisons
             }
 
+        # Per-skill aptitude scoring (if requested)
+        aptitude_summary = None
+        if with_aptitude:
+            print("Computing per-skill aptitude scores...")
+
+            # Fit rule posteriors using training data
+            rule_posteriors = fit_rule_posteriors(
+                rule_miner.rules,
+                train_resumes,
+                train_labels,
+                extractor,
+                n_folds=3
+            )
+
+            # Score a subset of test resumes (to keep computation manageable)
+            n_aptitude_samples = min(100, len(test_resumes))
+            aptitude_resumes = test_resumes[:n_aptitude_samples]
+            candidate_scorings = []
+
+            for resume in aptitude_resumes:
+                scoring = score_candidate(
+                    resume=resume,
+                    job_role=role,
+                    rule_posteriors=rule_posteriors,
+                    fairness_filter=rule_miner.fairness_filter,
+                    model_version="kaggle_benchmark_v1.0"
+                )
+                candidate_scorings.append(scoring)
+
+            # Compute summary statistics
+            all_skills = set()
+            all_recommendations = []
+            all_uncertainties = []
+
+            for scoring in candidate_scorings:
+                all_skills.update(scoring.aptitudes.keys())
+                all_recommendations.append(scoring.overall_recommendation)
+                uncertainty_width = scoring.overall_uncertainty[1] - scoring.overall_uncertainty[0]
+                all_uncertainties.append(uncertainty_width)
+
+            # Per-skill statistics
+            skill_stats = {}
+            for skill in all_skills:
+                skill_scores = []
+                skill_uncertainties = []
+
+                for scoring in candidate_scorings:
+                    if skill in scoring.aptitudes:
+                        apt = scoring.aptitudes[skill]
+                        skill_scores.append(apt.score)
+                        uncertainty_width = apt.uncertainty_interval[1] - apt.uncertainty_interval[0]
+                        skill_uncertainties.append(uncertainty_width)
+
+                if skill_scores:
+                    skill_stats[skill] = {
+                        "mean_score": float(np.mean(skill_scores)),
+                        "std_score": float(np.std(skill_scores)),
+                        "mean_uncertainty_width": float(np.mean(skill_uncertainties)),
+                        "n_candidates": len(skill_scores)
+                    }
+
+            # Overall recommendation distribution
+            from collections import Counter
+            rec_counts = Counter(all_recommendations)
+            recommendation_distribution = {
+                rec: count / len(all_recommendations)
+                for rec, count in rec_counts.items()
+            }
+
+            aptitude_summary = {
+                "n_scored_candidates": len(candidate_scorings),
+                "n_skills_covered": len(all_skills),
+                "per_skill_stats": skill_stats,
+                "recommendation_distribution": recommendation_distribution,
+                "mean_overall_uncertainty_width": float(np.mean(all_uncertainties)),
+                "model_version": "kaggle_benchmark_v1.0"
+            }
+
+            print(f"Aptitude scoring complete: {len(candidate_scorings)} candidates, {len(all_skills)} skills")
+
         # Top features by EBM importance
         top_features = []
         feature_importances = model.get_feature_importances(top_k=10)
@@ -244,7 +328,8 @@ class KaggleBenchmarkEvaluator:
                 "random_state": self.random_state,
                 "model_config": asdict(ebm_config),
                 "rule_config": asdict(rule_config)
-            }
+            },
+            aptitude_summary=aptitude_summary
         )
 
         # Save results
@@ -457,6 +542,24 @@ class KaggleBenchmarkEvaluator:
         for i, feature in enumerate(result.top_features[:5], 1):
             print(f"  {i}. {feature['feature_name']}: {feature['importance']:.3f}")
 
+        # Aptitude summary (if available)
+        if result.aptitude_summary:
+            print(f"\nAptitude Scoring Summary:")
+            print(f"  Candidates scored: {result.aptitude_summary['n_scored_candidates']}")
+            print(f"  Skills covered: {result.aptitude_summary['n_skills_covered']}")
+            print(f"  Mean uncertainty width: {result.aptitude_summary['mean_overall_uncertainty_width']:.3f}")
+
+            print(f"\n  Recommendation Distribution:")
+            for rec, prob in result.aptitude_summary['recommendation_distribution'].items():
+                print(f"    {rec}: {prob:.1%}")
+
+            print(f"\n  Top Skills (by mean score):")
+            skill_stats = result.aptitude_summary['per_skill_stats']
+            sorted_skills = sorted(skill_stats.items(),
+                                 key=lambda x: x[1]['mean_score'], reverse=True)[:3]
+            for skill, stats in sorted_skills:
+                print(f"    {skill}: {stats['mean_score']:.2f} ± {stats['mean_uncertainty_width']:.2f}")
+
         overall_status = "✅ PASSED" if all_passed else "❌ FAILED"
         print(f"\nOverall Fairness: {overall_status}")
         print("="*60)
@@ -471,11 +574,17 @@ def main():
     parser.add_argument("--output", type=str, default="benchmark_results.json",
                        help="Output file for results")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--with-aptitude", action="store_true",
+                       help="Include per-skill aptitude scoring in results")
 
     args = parser.parse_args()
 
     evaluator = KaggleBenchmarkEvaluator(random_state=args.seed)
-    evaluator.run_benchmark(dataset_path=args.dataset, output_path=args.output)
+    evaluator.run_benchmark(
+        dataset_path=args.dataset,
+        output_path=args.output,
+        with_aptitude=getattr(args, 'with_aptitude', False)
+    )
 
 
 if __name__ == "__main__":
