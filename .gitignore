@@ -134,6 +134,9 @@ datasets/processed/
 *.pickle
 *.pkl
 
+# Audit files
+audit_ledger.jsonl
+
 # Model artifacts
 models/
 checkpoints/
