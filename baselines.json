@@ -1,0 +1,119 @@
+{
+  "dataset_info": {
+    "source": "synthetic",
+    "dataset_path": "generated",
+    "dataset_hash": "synthetic_v1",
+    "n_samples": 1000,
+    "caveat": "Synthetic dataset - not real hiring decisions. Content-neutral generation.",
+    "generation_seed": 42
+  },
+  "baseline_results": {
+    "stratified_random": {
+      "auc": 0.46275055034179124,
+      "features": "none",
+      "notes": "theoretical floor",
+      "top_features": []
+    },
+    "logreg_raw": {
+      "auc": 0.6368902792260456,
+      "features": "content-neutral only",
+      "notes": "feature quality probe",
+      "top_features": [
+        {
+          "feature_name": "unique_skill_count",
+          "importance": 0.2818798436308248,
+          "rank": 1
+        },
+        {
+          "feature_name": "domain_count",
+          "importance": 0.2565349058074107,
+          "rank": 2
+        },
+        {
+          "feature_name": "experience_in_range",
+          "importance": 0.19750168959173045,
+          "rank": 3
+        },
+        {
+          "feature_name": "education_numeric",
+          "importance": 0.19147723667041028,
+          "rank": 4
+        },
+        {
+          "feature_name": "skill_overlap_jaccard",
+          "importance": 0.1328519104017158,
+          "rank": 5
+        }
+      ]
+    },
+    "ebm_raw": {
+      "auc": 0.6404819835476769,
+      "features": "content-neutral only",
+      "notes": "EBM vs logreg on same features",
+      "top_features": [
+        {
+          "feature_name": "education_numeric",
+          "importance": 0.09005474825160961,
+          "rank": 1
+        },
+        {
+          "feature_name": "years_experience",
+          "importance": 0.07672677191343848,
+          "rank": 2
+        },
+        {
+          "feature_name": "unique_skill_count",
+          "importance": 0.06923059968773129,
+          "rank": 3
+        },
+        {
+          "feature_name": "skill_diversity",
+          "importance": 0.06656492522844855,
+          "rank": 4
+        },
+        {
+          "feature_name": "experience_in_range",
+          "importance": 0.05556913826818269,
+          "rank": 5
+        }
+      ]
+    },
+    "ebm_full": {
+      "auc": 0.627157919128722,
+      "features": "content-neutral + rule features",
+      "notes": "current pipeline",
+      "top_features": [
+        {
+          "feature_name": "education_numeric",
+          "importance": 0.059905738506397285,
+          "rank": 1
+        },
+        {
+          "feature_name": "years_experience",
+          "importance": 0.050461128434676344,
+          "rank": 2
+        },
+        {
+          "feature_name": "skill_diversity",
+          "importance": 0.04610660645850657,
+          "rank": 3
+        },
+        {
+          "feature_name": "unique_skill_count",
+          "importance": 0.04419585877783334,
+          "rank": 4
+        },
+        {
+          "feature_name": "domain_count",
+          "importance": 0.03879170807193157,
+          "rank": 5
+        }
+      ]
+    }
+  },
+  "diagnosis": "feature bottleneck: logreg_raw (0.637) \u2248 ebm_full (0.627) suggests features are the limiting factor, not model choice or rules",
+  "metadata": {
+    "timestamp": "2026-04-27T23:13:23.211073",
+    "random_state": 42
+  }
+}
