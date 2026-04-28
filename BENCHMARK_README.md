@@ -100,19 +100,24 @@ The benchmark evaluates the complete pipeline:
 - **Legal Compliance**: Fairness metrics ≠ legal discrimination standards
 - **Hiring Effectiveness**: High AUC on proxy tasks ≠ good hiring decisions
 
-## Honest Baseline Performance
+## Measured Baseline Performance
 
-Using synthetic dataset (1000 samples, content-neutral generation):
+Using synthetic dataset (1000 samples, content-neutral generation, random_state=42):
 
-| Metric | Target | Typical Range |
-|--------|---------|---------------|
-| AUC | ≥ 0.80 | 0.75-0.85 |
-| Disparate Impact | ≥ 0.80 | 0.85-0.95 |
-| EO Gap | ≤ 0.10 | 0.03-0.08 |
-| ECE After Calibration | ≤ 0.05 | 0.02-0.06 |
-| Counterfactual P95 | ≤ 0.05 | 0.01-0.04 |
+| Metric | Target | Measured | Status |
+|--------|---------|----------|---------|
+| AUC | ≥ 0.80 | 0.649 | ❌ |
+| Disparate Impact (Gender) | ≥ 0.80 | 0.893 | ✅ |
+| Disparate Impact (Race) | ≥ 0.80 | 0.834 | ✅ |
+| EO Gap (Gender) | ≤ 0.10 | 0.135 | ❌ |
+| EO Gap (Race) | ≤ 0.10 | 0.223 | ❌ |
+| ECE (Gender) | ≤ 0.05 | 0.236 | ❌ |
+| ECE (Race) | ≤ 0.05 | 0.264 | ❌ |
+| Per-group AUC (Gender) | ≥ 0.70 | 0.569 | ❌ |
+| Per-group AUC (Race) | ≥ 0.70 | 0.616 | ❌ |
+| Counterfactual P95 | ≤ 0.05 | NaN (0 comparisons) | ❌ |
 
-**Note**: These ranges reflect synthetic data with content-neutral generation. Real-world performance may be significantly different.
+**Overall Status**: ❌ FAILED (2/8 measured metrics passing, 3 unmeasured)
 
 ## Known Issues and Future Work
 

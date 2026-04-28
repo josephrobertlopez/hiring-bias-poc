@@ -103,18 +103,25 @@
   },
   "counterfactual_results": {
     "gender": {
-      "flip_rate_mean": 0.0,
-      "flip_rate_p95": 0.0,
-      "flip_rate_max": 0.0,
-      "gate_passed": true,
-      "total_comparisons": 200
+      "flip_rate_mean": NaN,
+      "flip_rate_p95": NaN,
+      "flip_rate_max": NaN,
+      "gate_passed": false,
+      "total_comparisons": 0
     },
     "race": {
-      "flip_rate_mean": 0.0,
-      "flip_rate_p95": 0.0,
-      "flip_rate_max": 0.0,
-      "gate_passed": true,
-      "total_comparisons": 200
+      "flip_rate_mean": NaN,
+      "flip_rate_p95": NaN,
+      "flip_rate_max": NaN,
+      "gate_passed": false,
+      "total_comparisons": 0
+    },
+    "ethnicity": {
+      "flip_rate_mean": NaN,
+      "flip_rate_p95": NaN,
+      "flip_rate_max": NaN,
+      "gate_passed": false,
+      "total_comparisons": 0
     }
   },
   "top_features": [
@@ -187,7 +194,7 @@
     "calibration_samples": 240
   },
   "metadata": {
-    "timestamp": "2026-04-27T17:14:28.966399",
+    "timestamp": "2026-04-27T20:36:38.608065",
     "random_state": 42,
     "model_config": {
       "n_estimators": 100,
