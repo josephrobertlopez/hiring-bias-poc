@@ -120,11 +120,27 @@ class CounterfactualAnalyzer:
                 resumes, attr_name, model_predict_fn, feature_extractor
             )
 
-            if comparisons:
-                result = self._calculate_counterfactual_metrics(
-                    comparisons, attr_name, threshold
+            result = self._calculate_counterfactual_metrics(
+                comparisons, attr_name, threshold
+            )
+            results[attr_name] = result
+
+        # Check if we have zero comparisons across all attributes (vacuous)
+        total_comparisons_across_attrs = sum(r.total_comparisons for r in results.values())
+
+        if total_comparisons_across_attrs == 0:
+            # Fail closed: return failure verdict for all attributes
+            for attr_name in ['gender', 'race', 'ethnicity']:
+                results[attr_name] = CounterfactualResult(
+                    attribute_name=attr_name,
+                    flip_rate_mean=float('nan'),
+                    flip_rate_p95=float('nan'),
+                    flip_rate_max=float('nan'),
+                    gate_passed=False,
+                    threshold=threshold,
+                    total_comparisons=0,
+                    details={"reason": "vacuous: no demographic swaps produced different feature vectors"}
                 )
-                results[attr_name] = result
 
         return results
 
