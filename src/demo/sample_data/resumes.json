@@ -1,0 +1,122 @@
+[
+  {
+    "id": "senior_eng_001",
+    "name": "Alex Chen",
+    "skill_tokens": ["python", "sql", "tensorflow", "aws", "kubernetes", "docker", "machine_learning"],
+    "years_experience": 8.5,
+    "education_level": "master",
+    "domain_background": ["tech", "finance"],
+    "demographics": {
+      "gender": "female",
+      "race": "asian",
+      "age_band": "30-39",
+      "veteran_status": "non-veteran",
+      "disability": "none"
+    }
+  },
+  {
+    "id": "senior_eng_002",
+    "name": "Marcus Johnson",
+    "skill_tokens": ["python", "javascript", "react", "aws", "docker", "sql", "web_development"],
+    "years_experience": 12.0,
+    "education_level": "bachelor",
+    "domain_background": ["tech", "healthcare"],
+    "demographics": {
+      "gender": "male",
+      "race": "black",
+      "age_band": "40-49",
+      "veteran_status": "veteran",
+      "disability": "none"
+    }
+  },
+  {
+    "id": "senior_eng_003",
+    "name": "Sarah Rodriguez",
+    "skill_tokens": ["python", "sql", "tensorflow", "kubernetes", "data_analysis", "machine_learning"],
+    "years_experience": 9.2,
+    "education_level": "phd",
+    "domain_background": ["tech", "education"],
+    "demographics": {
+      "gender": "female",
+      "race": "hispanic",
+      "age_band": "30-39",
+      "veteran_status": "non-veteran",
+      "disability": "mobility"
+    }
+  },
+  {
+    "id": "mid_eng_001",
+    "name": "David Kim",
+    "skill_tokens": ["python", "sql", "javascript", "react", "aws"],
+    "years_experience": 4.5,
+    "education_level": "bachelor",
+    "domain_background": ["tech"],
+    "demographics": {
+      "gender": "male",
+      "race": "asian",
+      "age_band": "25-29",
+      "veteran_status": "non-veteran",
+      "disability": "none"
+    }
+  },
+  {
+    "id": "mid_eng_002",
+    "name": "Emily Taylor",
+    "skill_tokens": ["python", "javascript", "sql", "docker", "web_development"],
+    "years_experience": 5.8,
+    "education_level": "master",
+    "domain_background": ["tech", "retail"],
+    "demographics": {
+      "gender": "female",
+      "race": "white",
+      "age_band": "25-29",
+      "veteran_status": "non-veteran",
+      "disability": "cognitive"
+    }
+  },
+  {
+    "id": "junior_eng_001",
+    "name": "James Wilson",
+    "skill_tokens": ["python", "javascript", "react"],
+    "years_experience": 1.5,
+    "education_level": "bootcamp",
+    "domain_background": ["tech"],
+    "demographics": {
+      "gender": "male",
+      "race": "white",
+      "age_band": "22-24",
+      "veteran_status": "non-veteran",
+      "disability": "none"
+    }
+  },
+  {
+    "id": "junior_eng_002",
+    "name": "Priya Patel",
+    "skill_tokens": ["python", "sql", "javascript"],
+    "years_experience": 2.1,
+    "education_level": "bachelor",
+    "domain_background": ["tech"],
+    "demographics": {
+      "gender": "female",
+      "race": "asian",
+      "age_band": "22-24",
+      "veteran_status": "non-veteran",
+      "disability": "hearing"
+    }
+  },
+  {
+    "id": "ops_analyst_001",
+    "name": "Robert Martinez",
+    "skill_tokens": ["sql", "python", "data_analysis"],
+    "years_experience": 6.0,
+    "education_level": "bachelor",
+    "domain_background": ["finance", "healthcare"],
+    "demographics": {
+      "gender": "male",
+      "race": "hispanic",
+      "age_band": "30-39",
+      "veteran_status": "veteran",
+      "disability": "visual"
+    }
+  }
+]

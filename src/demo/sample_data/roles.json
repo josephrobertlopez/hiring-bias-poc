@@ -1,0 +1,24 @@
+[
+  {
+    "id": "senior_python_engineer",
+    "title": "Senior Python Engineer",
+    "required_skills": ["python", "sql"],
+    "preferred_skills": ["tensorflow", "aws", "react", "docker", "kubernetes"],
+    "min_experience": 5.0,
+    "max_experience": 15.0,
+    "role_keywords": ["software", "engineer", "developer", "backend", "python"],
+    "seniority_level": "senior",
+    "description": "Senior software engineer role focused on Python backend development with cloud infrastructure experience."
+  },
+  {
+    "id": "operations_analyst",
+    "title": "Operations Analyst",
+    "required_skills": ["sql", "data_analysis"],
+    "preferred_skills": ["python", "machine_learning"],
+    "min_experience": 2.0,
+    "max_experience": 8.0,
+    "role_keywords": ["analyst", "operations", "data", "reporting", "business"],
+    "seniority_level": "mid",
+    "description": "Operations analyst role focused on data analysis and business process optimization."
+  }
+]
