@@ -67,14 +67,22 @@ class TestFairnessInvariants:
     )
     def test_two_group_di_monotonic(self, rate_a, rate_b):
         """Property: As one rate increases, DI increases (or stays same)."""
-        # Create two scenarios with rate_a and rate_b, then with rate_a + 0.01
-        result1 = compute_disparity_index([rate_a, rate_b])
+        # Avoid floating point precision issues near zero
+        assume(rate_a >= 1e-6 and rate_b >= 1e-6)
+        assume(abs(rate_a - rate_b) >= 1e-6)
 
-        rate_a_increased = min(rate_a + 0.01, 1.0)
-        result2 = compute_disparity_index([rate_a_increased, rate_b])
-
-        # Increasing min should increase or maintain DI
+        # Ensure the increase doesn't flip the min/max relationship
         if rate_a < rate_b:
+            # If rate_a is smaller, ensure increase doesn't make it larger than rate_b
+            increase = min(0.01, rate_b - rate_a - 1e-6)
+            assume(increase > 0)  # Skip if no valid increase possible
+
+            result1 = compute_disparity_index([rate_a, rate_b])
+
+            rate_a_increased = rate_a + increase
+            result2 = compute_disparity_index([rate_a_increased, rate_b])
+
+            # Increasing min should increase or maintain DI when min/max order preserved
             assert result2["disparity_index"] >= result1["disparity_index"]
 
     def test_extreme_bias_detection(self):
