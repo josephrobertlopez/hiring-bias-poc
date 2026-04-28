@@ -49,14 +49,14 @@ def fairness_test_data():
         ({'gender': 'female', 'race': 'asian'}, ['python', 'react', 'sql'], 4.8, True),
     ]
 
-    # Group 2: Medium candidates (perfectly balanced hiring)
+    # Group 2: Medium candidates (mixed hiring decisions)
     medium_candidates = [
         ({'gender': 'male', 'race': 'white'}, ['python'], 3.0, True),
-        ({'gender': 'female', 'race': 'white'}, ['sql', 'aws'], 3.1, True),
-        ({'gender': 'male', 'race': 'black'}, ['javascript'], 2.8, True),
-        ({'gender': 'female', 'race': 'black'}, ['python', 'sql'], 3.2, True),
-        ({'gender': 'male', 'race': 'asian'}, ['sql'], 2.5, True),
-        ({'gender': 'female', 'race': 'asian'}, ['python'], 3.0, True),
+        ({'gender': 'female', 'race': 'white'}, ['sql', 'aws'], 2.5, False),
+        ({'gender': 'male', 'race': 'black'}, ['javascript'], 3.5, True),
+        ({'gender': 'female', 'race': 'black'}, ['python', 'sql'], 3.2, False),
+        ({'gender': 'male', 'race': 'asian'}, ['sql'], 2.8, True),
+        ({'gender': 'female', 'race': 'asian'}, ['python'], 3.1, False),
     ]
 
     # Group 3: Weak candidates (should mostly not be hired)
@@ -207,12 +207,6 @@ def test_counterfactual_flip_rate_gate(fairness_test_data, trained_model):
     analyzer = CounterfactualAnalyzer()
     cf_results = analyzer.analyze_counterfactual_fairness(resumes, predict_fn, threshold=0.05, feature_extractor=extractor)
 
-    # CONTENT-NEUTRAL CHECK: Empty results means truly fair features
-    if not cf_results:
-        # No counterfactual effects detected - this is the BEST outcome for fairness
-        # Content-neutral features mean demographic swaps don't affect predictions
-        return  # Pass the gate - no counterfactual bias possible
-
     # GATE: p95 flip rate ≤ 0.05 for all protected attributes
     for attr_name, result in cf_results.items():
         # NON-VACUOUS CHECK: Must have actual comparisons to be meaningful
@@ -227,6 +221,9 @@ def test_counterfactual_flip_rate_gate(fairness_test_data, trained_model):
             f"p95 flip rate {result.flip_rate_p95:.3f} > 0.05. "
             f"Mean: {result.flip_rate_mean:.3f}, Max: {result.flip_rate_max:.3f}"
         )
+
+    # Ensure we tested the main attributes
+    assert 'gender' in cf_results or 'race' in cf_results, "No counterfactual analysis performed"
 
 
 def test_per_group_auc_gate(fairness_test_data, trained_model):
