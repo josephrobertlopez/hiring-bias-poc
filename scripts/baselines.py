@@ -287,20 +287,24 @@ class BaselineDiagnostic:
         }
 
     def _extract_feature_matrix(self, resumes, extractor):
-        """Extract content-neutral features as pandas DataFrame."""
+        """Extract content-neutral features as pandas DataFrame with same encoding as kaggle_eval.py."""
         import pandas as pd
+        from sklearn.preprocessing import LabelEncoder
 
         feature_dicts = [extractor.extract_features(resume) for resume in resumes]
         df = pd.DataFrame(feature_dicts)
 
-        # Filter to only numeric and binary features (exclude categorical strings)
-        numeric_features = extractor.get_numeric_features()
-        binary_features = extractor.get_binary_features()
-        allowed_features = numeric_features + binary_features
+        # STEP 6 FIX: Use same feature pipeline as kaggle_eval.py (120 features, not 117)
+        # Include ALL features and label-encode categoricals like EBM model does
+        categorical_features = set(extractor.get_categorical_features())
 
-        # Only keep columns that are in the allowed features and exist in the DataFrame
-        available_features = [f for f in allowed_features if f in df.columns]
-        return df[available_features]
+        # Label-encode categorical features to match kaggle_eval.py behavior
+        for feature in categorical_features:
+            if feature in df.columns:
+                le = LabelEncoder()
+                df[feature] = le.fit_transform(df[feature].astype(str))
+
+        return df
 
     def _extract_rule_features(self, resumes, rule_miner, extractor):
         """Extract rule features as pandas DataFrame."""

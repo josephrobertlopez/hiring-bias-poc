@@ -15,157 +15,192 @@
       "top_features": []
     },
     "logreg_raw": {
-      "auc": 0.6368902792260456,
+      "auc": 0.6341096049125247,
       "features": "content-neutral only",
       "notes": "feature quality probe",
       "top_features": [
         {
           "feature_name": "unique_skill_count",
-          "importance": 0.2818798436308248,
+          "importance": 0.28314352007894755,
           "rank": 1
         },
         {
-          "feature_name": "domain_count",
-          "importance": 0.2565349058074107,
+          "feature_name": "years_experience_match",
+          "importance": 0.26599757755754694,
           "rank": 2
         },
         {
-          "feature_name": "experience_in_range",
-          "importance": 0.19750168959173045,
+          "feature_name": "domain_count",
+          "importance": 0.25475460364737107,
           "rank": 3
         },
         {
           "feature_name": "education_numeric",
-          "importance": 0.19147723667041028,
+          "importance": 0.20715470508002537,
           "rank": 4
         },
         {
           "feature_name": "skill_overlap_jaccard",
-          "importance": 0.1328519104017158,
+          "importance": 0.16355408645831596,
           "rank": 5
         }
       ]
     },
     "ebm_raw": {
-      "auc": 0.6404819835476769,
+      "auc": 0.6284323948557525,
       "features": "content-neutral only",
       "notes": "EBM vs logreg on same features",
       "top_features": [
         {
-          "feature_name": "education_numeric",
-          "importance": 0.09005474825160961,
+          "feature_name": "unique_skill_count",
+          "importance": 0.06207771445153073,
           "rank": 1
         },
         {
-          "feature_name": "years_experience",
-          "importance": 0.07672677191343848,
+          "feature_name": "skill_diversity",
+          "importance": 0.06191571429416891,
           "rank": 2
         },
         {
-          "feature_name": "unique_skill_count",
-          "importance": 0.06923059968773129,
+          "feature_name": "education_numeric",
+          "importance": 0.058691813879142934,
           "rank": 3
         },
         {
-          "feature_name": "skill_diversity",
-          "importance": 0.06656492522844855,
+          "feature_name": "years_experience",
+          "importance": 0.04715643991569379,
           "rank": 4
         },
         {
-          "feature_name": "experience_in_range",
-          "importance": 0.05556913826818269,
+          "feature_name": "domain_count",
+          "importance": 0.046844650349365684,
           "rank": 5
         }
       ]
     },
     "ebm_full": {
-      "auc": 0.627157919128722,
+      "auc": 0.624377244815201,
       "features": "content-neutral + rule features",
       "notes": "current pipeline",
       "top_features": [
         {
           "feature_name": "education_numeric",
-          "importance": 0.059905738506397285,
+          "importance": 0.042735260694082934,
           "rank": 1
         },
         {
-          "feature_name": "years_experience",
-          "importance": 0.050461128434676344,
+          "feature_name": "skill_diversity",
+          "importance": 0.040197786691528584,
           "rank": 2
         },
         {
-          "feature_name": "skill_diversity",
-          "importance": 0.04610660645850657,
+          "feature_name": "unique_skill_count",
+          "importance": 0.03828216236644435,
           "rank": 3
         },
         {
-          "feature_name": "unique_skill_count",
-          "importance": 0.04419585877783334,
+          "feature_name": "years_experience",
+          "importance": 0.03487530579513786,
           "rank": 4
         },
         {
           "feature_name": "domain_count",
-          "importance": 0.03879170807193157,
+          "importance": 0.0346391131460968,
           "rank": 5
         }
       ]
     }
   },
-  "diagnosis": "feature bottleneck: logreg_raw (0.637) \u2248 ebm_full (0.627) suggests features are the limiting factor, not model choice or rules",
+  "diagnosis": "feature bottleneck: logreg_raw (0.634) \u2248 ebm_full (0.624) suggests features are the limiting factor, not model choice or rules",
   "metadata": {
-    "timestamp": "2026-04-28T07:54:50.623741",
+    "timestamp": "2026-04-28T10:43:18.764283",
     "random_state": 42
   },
   "multi_seed_results": {
     "seeds": [
       42,
       43,
-      44
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51
     ],
-    "n_seeds": 3,
+    "n_seeds": 10,
     "pipeline_stats": {
       "stratified_random": {
-        "mean": 0.4889548986666849,
-        "std": 0.018800254053679157,
-        "min": 0.46275055034179124,
-        "max": 0.505952380952381,
+        "mean": 0.5067689696288031,
+        "std": 0.03318511997882208,
+        "min": 0.45952380952380956,
+        "max": 0.556547619047619,
         "aucs": [
           0.46275055034179124,
           0.505952380952381,
-          0.49816176470588236
+          0.49816176470588236,
+          0.45952380952380956,
+          0.556547619047619,
+          0.46867933061962913,
+          0.5248907236522584,
+          0.5518339426819201,
+          0.5282462554546528,
+          0.5111033193080878
         ]
       },
       "logreg_raw": {
-        "mean": 0.6036628165814176,
-        "std": 0.06330790931653593,
-        "min": 0.5150505514705882,
-        "max": 0.659047619047619,
+        "mean": 0.6187851929138948,
+        "std": 0.06129142523954558,
+        "min": 0.5148207720588236,
+        "max": 0.7177027683341428,
         "aucs": [
-          0.6368902792260456,
-          0.659047619047619,
-          0.5150505514705882
+          0.6341096049125247,
+          0.6597619047619048,
+          0.5148207720588236,
+          0.5332142857142858,
+          0.5591517857142858,
+          0.6050429669832655,
+          0.7177027683341428,
+          0.6455949994103077,
+          0.6582144120768959,
+          0.6602384291725106
         ]
       },
       "ebm_raw": {
-        "mean": 0.6053987199477318,
-        "std": 0.06212813387342397,
-        "min": 0.5180951286764706,
-        "max": 0.6576190476190477,
+        "mean": 0.6182736616338442,
+        "std": 0.060995194695862044,
+        "min": 0.5213120404411765,
+        "max": 0.7240165128703254,
         "aucs": [
-          0.6404819835476769,
-          0.6576190476190477,
-          0.5180951286764706
+          0.6284323948557525,
+          0.6571428571428571,
+          0.5213120404411765,
+          0.534047619047619,
+          0.5551835317460316,
+          0.6033469018543645,
+          0.7240165128703254,
+          0.6500766599834887,
+          0.6601014270550772,
+          0.6490766713417485
         ]
       },
       "ebm_full": {
-        "mean": 0.6041881366166701,
-        "std": 0.05636635067040754,
-        "min": 0.5265969669117646,
-        "max": 0.6588095238095238,
+        "mean": 0.6215055367265908,
+        "std": 0.058884093079078936,
+        "min": 0.5308478860294118,
+        "max": 0.7237736765420106,
         "aucs": [
-          0.627157919128722,
-          0.6588095238095238,
-          0.5265969669117646
+          0.624377244815201,
+          0.6579761904761905,
+          0.5308478860294118,
+          0.5332142857142858,
+          0.5623759920634921,
+          0.6196291270918136,
+          0.7237736765420106,
+          0.6458308762825805,
+          0.662460195777804,
+          0.6545698924731181
         ]
       }
     }

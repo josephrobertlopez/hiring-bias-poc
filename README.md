@@ -4,8 +4,9 @@ Resume screening bias detection prototype with honest fairness measurement.
 
 ## Current Performance
 
-**Baseline (synthetic dataset, 1000 samples, random_state=42):**
-- **AUC**: 0.649 (target ≥ 0.80) ❌
+**Baseline (synthetic dataset, 1000 samples, 10-seed average):**
+- **AUC**: 0.622 ± 0.059 (target ≥ 0.80) ❌ 
+- **Measurement Reliability**: ±0.06 std exceeds all model differences ❌
 - **Disparate Impact**: 0.893 gender, 0.834 race (target ≥ 0.80) ✅
 - **Equalized Odds Gap**: 0.135 gender, 0.223 race (target ≤ 0.10) ❌  
 - **Expected Calibration Error**: 0.236 gender, 0.264 race (target ≤ 0.05) ❌
@@ -121,8 +122,9 @@ tests/
 
 ## Important Limitations
 
-### ⚠️ Dataset Limitations
+### ⚠️ Dataset Limitations  
 - **No real hiring data**: Uses synthetic data (legal/privacy restrictions)
+- **Measurement unreliability**: AUC std (±0.06) exceeds all model differences - synthetic dataset cannot support stable performance measurement
 - **Kaggle proxy tasks**: Most "hiring" datasets are job classification, not hire/no-hire
 - **If using job classification data, reported "hiring AUC" is actually job classification AUC**
 
