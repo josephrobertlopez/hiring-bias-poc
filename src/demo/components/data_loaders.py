@@ -6,6 +6,7 @@ Sample resumes, roles, predict fn factory, ledger population.
 import streamlit as st
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Dict, List, Any
 import numpy as np
@@ -155,8 +156,30 @@ def create_prediction_function(role: JobRole):
 def populate_demo_ledger():
     """Populate audit ledger with real decisions for demo (if empty)."""
     # Check if ledger already has data
-    if os.path.exists(LEDGER_FILE) and len(read_all_decisions()) >= 16:
-        return  # Already populated
+    if os.path.exists(LEDGER_FILE):
+        try:
+            decisions = read_all_decisions()
+            if len(decisions) >= 16:
+                # Validate all timestamps - if any are invalid, rebuild
+                invalid_count = 0
+                for decision in decisions:
+                    try:
+                        datetime.fromisoformat(decision.get('timestamp', '').rstrip('Z'))
+                    except (ValueError, TypeError):
+                        invalid_count += 1
+
+                if invalid_count > 0:
+                    print(f"audit_ledger.jsonl contained {len(decisions)} entries with {invalid_count} invalid timestamps (pre-076323b artifact); rebuilding", file=sys.stderr)
+                    # Truncate the file for rebuild
+                    with open(LEDGER_FILE, 'w') as f:
+                        pass  # Truncate file
+                else:
+                    return  # All timestamps valid, leave alone
+            # If < 16 decisions or invalid timestamps found, continue to rebuild
+        except Exception:
+            # If reading fails entirely, rebuild
+            with open(LEDGER_FILE, 'w') as f:
+                pass  # Truncate file
 
     # Load sample data
     resumes, roles = load_sample_data()
