@@ -269,12 +269,20 @@ class KaggleBenchmarkEvaluator:
                         skill_uncertainties.append(uncertainty_width)
 
                 if skill_scores:
-                    skill_stats[skill] = {
-                        "mean_score": float(np.mean(skill_scores)),
-                        "std_score": float(np.std(skill_scores)),
-                        "mean_uncertainty_width": float(np.mean(skill_uncertainties)),
-                        "n_candidates": len(skill_scores)
-                    }
+                    # Filter out NaN values for robust statistics
+                    valid_scores = [s for s in skill_scores if not np.isnan(s)]
+                    valid_uncertainties = [u for u in skill_uncertainties if not np.isnan(u)]
+
+                    if valid_scores:
+                        skill_stats[skill] = {
+                            "mean_score": float(np.mean(valid_scores)),
+                            "std_score": float(np.std(valid_scores)),
+                            "mean_uncertainty_width": float(np.mean(valid_uncertainties)) if valid_uncertainties else 0.0,
+                            "n_candidates": len(valid_scores)
+                        }
+                    else:
+                        # All scores were NaN - skip this skill in output
+                        pass
 
             # Overall recommendation distribution
             from collections import Counter

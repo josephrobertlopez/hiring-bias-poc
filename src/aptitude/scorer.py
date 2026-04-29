@@ -95,7 +95,7 @@ def score_candidate(
             overall_uncertainty=(0.0, 1.0),
             decision_id=decision_id,
             model_version=model_version,
-            timestamp=datetime.now().isoformat()
+            timestamp=f"deterministic_ts_{decision_id}"
         )
 
     # Convert resume to transaction for rule evaluation
@@ -196,7 +196,7 @@ def score_candidate(
         overall_uncertainty=overall_uncertainty,
         decision_id=decision_id,
         model_version=model_version,
-        timestamp=datetime.now().isoformat()
+        timestamp=f"deterministic_ts_{decision_id}"
     )
 
 
