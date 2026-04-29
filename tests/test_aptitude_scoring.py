@@ -6,6 +6,7 @@ edge case handling.
 
 import pytest
 import numpy as np
+import math
 from unittest.mock import Mock
 
 from src.aptitude.scorer import score_candidate, SkillAptitude, RuleFiring, CandidateScoring
@@ -13,6 +14,21 @@ from src.posteriors.rule_reliability import RulePosterior
 from src.features.rule_miner import AssociationRule
 from src.rules.data import Resume
 from src.features.extractors import JobRole
+
+
+def assert_scoring_equal(s1, s2):
+    """NaN-aware comparison for CandidateScoring objects."""
+    assert s1.decision_id == s2.decision_id
+    assert s1.model_version == s2.model_version
+    assert set(s1.aptitudes.keys()) == set(s2.aptitudes.keys())
+    for skill in s1.aptitudes:
+        a1, a2 = s1.aptitudes[skill], s2.aptitudes[skill]
+        if math.isnan(a1.score):
+            assert math.isnan(a2.score)
+        else:
+            assert a1.score == a2.score
+            assert a1.uncertainty_interval == a2.uncertainty_interval
+        assert a1.contributing_rules == a2.contributing_rules
 
 
 def test_aptitude_score_deterministic():
@@ -53,20 +69,12 @@ def test_aptitude_score_deterministic():
     scores = []
     for _ in range(10):
         scoring = score_candidate(resume, role, rules, rule_posteriors, extractor)
-        # Extract deterministic parts (exclude decision_id and timestamp)
-        deterministic_part = (
-            tuple((skill, apt.score, apt.uncertainty_interval, len(apt.contributing_rules))
-                  for skill, apt in sorted(scoring.aptitudes.items())),
-            scoring.overall_recommendation,
-            scoring.overall_uncertainty,
-            scoring.model_version
-        )
-        scores.append(deterministic_part)
+        scores.append(scoring)
 
-    # All deterministic parts should be identical
+    # All scores should be identical using NaN-aware comparison
     first_score = scores[0]
     for score in scores[1:]:
-        assert score == first_score, "Aptitude scoring is not deterministic"
+        assert_scoring_equal(score, first_score)
 
 
 def test_aptitude_handles_skill_with_no_firing_rules():

@@ -63,8 +63,17 @@ def fit_rule_posteriors(
     # Initialize fairness filter check - reuse from rule miner
     fairness_filter = FairnessFilteredRuleMiner()
 
+    # Calculate effective folds to handle small datasets
+    n_samples = len(train_resumes)
+    n_pos = sum(train_labels)
+    n_neg = n_samples - n_pos
+    effective_folds = min(n_folds, n_pos, n_neg)
+    if effective_folds < 2:
+        # Single-fold fallback: fit on all data, posterior is wider
+        return _fit_single_fold(rules, train_resumes, train_labels, extractor)
+
     # Cross-validated reliability estimates
-    kf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
+    kf = StratifiedKFold(n_splits=effective_folds, shuffle=True, random_state=42)
     rule_stats = {}
 
     # Initialize statistics for each rule
@@ -158,3 +167,60 @@ def _rule_contains_protected_attributes(rule: AssociationRule, fairness_filter: 
             return True
 
     return False
+
+
+def _fit_single_fold(rules: List[AssociationRule], train_resumes: List[Resume],
+                    train_labels: List[bool], extractor) -> Dict[str, RulePosterior]:
+    """Single-fold fallback for small datasets with wider uncertainty intervals."""
+    from ..features.rule_miner import FairnessFilteredRuleMiner
+
+    # Initialize fairness filter
+    fairness_filter = FairnessFilteredRuleMiner()
+
+    # Convert resumes to transactions
+    transactions = []
+    for resume, label in zip(train_resumes, train_labels):
+        transaction = _resume_to_transaction(resume, extractor)
+        transactions.append((transaction, label))
+
+    posteriors = {}
+
+    # Evaluate each rule on full dataset
+    for rule_idx, rule in enumerate(rules):
+        rule_id = f"rule_{rule_idx}"
+
+        total_firings = 0
+        total_successes = 0
+
+        # Count rule firings and successes on full data
+        for transaction, label in transactions:
+            rule_fires = rule.antecedent.issubset(transaction)
+            if rule_fires:
+                total_firings += 1
+                if label:  # Hired/advanced
+                    total_successes += 1
+
+        # Compute wider posterior (smaller effective sample)
+        # Use half the actual observations to increase uncertainty
+        if total_firings == 0:
+            # Rule never fired: use uninformative prior only
+            effective_firings = 0
+            effective_successes = 0
+            alpha = 1.0  # Prior
+            beta_param = 1.0  # Prior
+        else:
+            # Rule fired: use half observations for wider uncertainty
+            effective_firings = max(1, total_firings // 2)
+            effective_successes = max(1, total_successes // 2) if total_successes > 0 else 0
+            alpha = effective_successes + 1
+            beta_param = (effective_firings - effective_successes) + 1
+
+        posteriors[rule_id] = RulePosterior(
+            rule_id=rule_id,
+            alpha=alpha,
+            beta_param=beta_param,
+            n_observations=effective_firings,
+            passed_fairness_filter=not _rule_contains_protected_attributes(rule, fairness_filter)
+        )
+
+    return posteriors

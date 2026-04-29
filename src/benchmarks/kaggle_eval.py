@@ -237,10 +237,10 @@ class KaggleBenchmarkEvaluator:
             for resume in aptitude_resumes:
                 scoring = score_candidate(
                     resume=resume,
-                    job_role=role,
+                    role=role,
+                    rules=rule_miner.rules,
                     rule_posteriors=rule_posteriors,
-                    fairness_filter=rule_miner.fairness_filter,
-                    model_version="kaggle_benchmark_v1.0"
+                    extractor=extractor
                 )
                 candidate_scorings.append(scoring)
 
