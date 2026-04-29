@@ -107,7 +107,7 @@ def get_demo_model_components():
 
 def get_model_features(resume: Resume, role: JobRole, extractor: ContentNeutralExtractor) -> Dict[str, Any]:
     """Extract features that the model sees from a resume-role pair."""
-    features = extractor.extract_features(resume, role)
+    features = extractor.extract_features(resume)
     return features
 
 
