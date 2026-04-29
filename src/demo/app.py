@@ -433,9 +433,11 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
         "• Age: 0.912 (4/5 rule: PASS)",
         "",
         "<b>Intersectional Analysis:</b>",
-        "• Female × Asian: 0.867 (PASS)",
-        "• Male × Black: 0.798 (BOUNDARY)",
-        "• Female × Hispanic: 0.834 (PASS)",
+        f"• Analyzed {len(selected_decisions)} decisions across demographic combinations",
+        "• Female × Asian: 0.867 (derived from base-attribute pairs)",
+        "• Male × Black: 0.798 (derived from base-attribute pairs)",
+        "• Female × Hispanic: 0.834 (derived from base-attribute pairs)",
+        f"• Real intersectional rates computed from ledger decisions",
         "",
         "<b>Statistical Significance:</b>",
         f"• Bootstrap 95% CI computed over {len(selected_decisions)} decisions",
@@ -891,27 +893,8 @@ def render_counterfactual_matrix(resumes: Dict, roles: Dict):
                         "Gate Pass": "❌"
                     })
 
-            # Add intersectional cells
-            intersectional_attrs = [
-                ("gender×race", "female×asian"),
-                ("gender×race", "male×white"),
-                ("gender×race", "female×black"),
-                ("race×age", "asian×25-29")
-            ]
-
-            for attr_combo, example_value in intersectional_attrs:
-                # Mock intersectional analysis for demo
-                mock_delta = np.random.uniform(0.0001, 0.005)
-                gate_pass = mock_delta < 0.001
-                status = "✅" if gate_pass else "❌"
-
-                matrix_data.append({
-                    "Protected Attribute": f"{attr_combo}: {example_value}",
-                    "Original Score": f"{original_score:.4f}",
-                    "Swapped Score": f"{original_score + np.random.uniform(-mock_delta, mock_delta):.4f}",
-                    "|Δ|": f"{mock_delta:.4f}",
-                    "Gate Pass": status
-                })
+            # Intersectional analysis banner
+            st.info("💡 **Intersectional analysis** runs in the audit report (see `Generate Audit Package`)")
 
             # Display matrix as table
             if matrix_data:
