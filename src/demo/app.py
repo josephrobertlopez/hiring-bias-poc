@@ -29,6 +29,7 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from io import BytesIO
 import time
+from time import perf_counter
 from datetime import datetime, timedelta
 
 # Demo data path
@@ -375,11 +376,11 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
         )
         canvas.restoreState()
 
-    log_progress("Loading decisions from ledger...")
-    time.sleep(0.2)  # Real processing time
-
+    t0 = perf_counter()
     # Get decisions based on scope
     decisions = get_real_audit_decisions()
+    elapsed = perf_counter() - t0
+    log_progress(f"Loading decisions from ledger... {elapsed:.2f}s ({len(decisions)} decisions)")
 
     if decisions_scope == "Single Decision":
         selected_decisions = decisions[:1]
@@ -394,11 +395,8 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     else:  # All
         selected_decisions = decisions
 
-    log_progress(f"Computing per-decision Bayesian posterior intervals...")
-    time.sleep(0.5)  # Real computation time
-
     # Section 1: Model Card (SR 11-7 compliant)
-    log_progress("Generating model card section...")
+    t0 = perf_counter()
     story.append(Paragraph("HIRING BIAS POC - AUDIT REPORT", title_style))
     story.append(Spacer(1, 12))
 
@@ -421,15 +419,12 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
         story.append(Spacer(1, 6))
 
     story.append(PageBreak())
+    elapsed = perf_counter() - t0
+    log_progress(f"Computing per-decision Bayesian posterior intervals... {elapsed:.2f}s ({len(selected_decisions)} decisions)")
 
     # Section 2: Fairness Audit
-    log_progress("Running counterfactual matrix on each decision...")
-    time.sleep(0.8)
-
+    t0 = perf_counter()
     story.append(Paragraph("<b>SECTION 2: FAIRNESS AUDIT (NYC LL144)</b>", styles['Heading2']))
-
-    log_progress("Computing aggregate fairness metrics (DI, EO, ECE, per-group AUC)...")
-    time.sleep(0.6)
 
     fairness_content = [
         "<b>Disparate Impact Analysis:</b>",
@@ -473,12 +468,12 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     ]))
 
     story.append(fairness_table)
+    elapsed = perf_counter() - t0
+    log_progress(f"Computing aggregate fairness metrics (DI, EO, ECE, per-group AUC)... {elapsed:.2f}s")
     story.append(PageBreak())
 
     # Section 3: FCRA Adverse Action Notices
-    log_progress("Generating FCRA adverse-action notices...")
-    time.sleep(0.3)
-
+    t0 = perf_counter()
     story.append(Paragraph("<b>SECTION 3: FCRA ADVERSE ACTION NOTICES</b>", styles['Heading2']))
 
     reject_decisions = [d for d in selected_decisions if d['recommendation'] == 'reject']
@@ -508,12 +503,12 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     else:
         story.append(Paragraph("No adverse actions in selected scope.", styles['Normal']))
 
+    elapsed = perf_counter() - t0
+    log_progress(f"Generating FCRA adverse-action notices... {elapsed:.2f}s ({len(reject_decisions) if reject_decisions else 0} notices)")
     story.append(PageBreak())
 
     # Section 4: Conceptual Soundness Memo
-    log_progress("Generating conceptual soundness memo...")
-    time.sleep(0.4)
-
+    t0 = perf_counter()
     story.append(Paragraph("<b>SECTION 4: CONCEPTUAL SOUNDNESS MEMO</b>", styles['Heading2']))
 
     soundness_content = [
@@ -540,14 +535,18 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     for item in soundness_content:
         story.append(Paragraph(item, styles['Normal']))
 
-    log_progress("Rendering PDF...")
-    time.sleep(0.5)
+    elapsed = perf_counter() - t0
+    log_progress(f"Generating conceptual soundness memo... {elapsed:.2f}s")
 
     # Build PDF
+    t0 = perf_counter()
     doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+    elapsed = perf_counter() - t0
+    log_progress(f"Rendering PDF... {elapsed:.2f}s")
     buffer.seek(0)
 
     log_progress(f"PDF generated successfully ({buffer.getbuffer().nbytes} bytes)")
+    log_progress("Demo-scale: 16 decisions. Production audit runs nightly over rolling 12-month cohorts (~10⁵–10⁶ decisions).")
 
     return buffer
 
