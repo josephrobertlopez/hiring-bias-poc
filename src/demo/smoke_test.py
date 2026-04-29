@@ -13,15 +13,17 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.demo.app import (
+from src.demo.components.data_loaders import (
     load_sample_data,
     get_demo_model_components,
     create_prediction_function,
     get_model_features,
-    generate_audit_pdf,
     get_real_audit_decisions,
+)
+from src.demo.components.pdf_renderer import (
+    generate_audit_pdf,
     inject_biased_decision,
-    process_reviewer_action
+    process_reviewer_action,
 )
 from src.features.extractors import ContentNeutralExtractor
 from src.features.rule_miner import FairnessFilteredRuleMiner, RuleMinerConfig
