@@ -20,6 +20,9 @@ def assert_scoring_equal(s1, s2):
     """NaN-aware comparison for CandidateScoring objects."""
     assert s1.decision_id == s2.decision_id
     assert s1.model_version == s2.model_version
+    # timestamp deliberately excluded — it records when, not what
+    assert s1.overall_recommendation == s2.overall_recommendation
+    assert s1.overall_uncertainty == s2.overall_uncertainty
     assert set(s1.aptitudes.keys()) == set(s2.aptitudes.keys())
     for skill in s1.aptitudes:
         a1, a2 = s1.aptitudes[skill], s2.aptitudes[skill]
