@@ -140,10 +140,10 @@ def create_prediction_function(role: JobRole):
         try:
             scoring = score_candidate(
                 resume=resume,
-                job_role=role,
+                role=role,
+                rules=rule_miner.rules,
                 rule_posteriors=rule_posteriors,
-                fairness_filter=rule_miner.fairness_filter,
-                model_version="demo_v1.0"
+                extractor=extractor
             )
 
             # Convert recommendation to probability
@@ -167,83 +167,126 @@ def create_prediction_function(role: JobRole):
 
 
 @st.cache_data
-def create_mock_audit_decisions():
-    """Create mock audit decisions for governance dashboard."""
-    import uuid
-    from datetime import datetime, timedelta
+def populate_demo_ledger():
+    """Populate audit ledger with real decisions for demo (if empty)."""
+    from ..audit.ledger import read_all_decisions, log_decision, LEDGER_FILE
 
+    # Check if ledger already has data
+    if os.path.exists(LEDGER_FILE) and len(read_all_decisions()) >= 16:
+        return  # Already populated
+
+    # Load sample data
+    resumes, roles = load_sample_data()
+    vocab, train_resumes, train_labels = get_demo_model_components()
+
+    # Create rule mining components once
+    rule_config = RuleMinerConfig(
+        min_support=0.1,
+        min_confidence=0.6,
+        min_lift=1.1,
+        top_k=20
+    )
+    rule_miner = FairnessFilteredRuleMiner(rule_config)
+    # Use first role as a placeholder for rule mining (rules are role-agnostic in this implementation)
+    sample_role = list(roles.values())[0]["role"]
+    rule_miner.mine_rules(train_resumes, train_labels, ContentNeutralExtractor(vocab, sample_role))
+
+    # Generate decisions for each resume x role combination
+    for resume_id, resume_data in resumes.items():
+        for role_id, role_data in roles.items():
+            resume = resume_data["resume"]
+            role = role_data["role"]
+
+            # Create extractor for this role
+            extractor = ContentNeutralExtractor(vocab, role)
+
+            # Fit rule posteriors for this role
+            rule_posteriors = fit_rule_posteriors(
+                rule_miner.rules,
+                train_resumes,
+                train_labels,
+                extractor,
+                n_folds=3
+            )
+
+            # Score candidate
+            scoring = score_candidate(
+                resume=resume,
+                role=role,
+                rules=rule_miner.rules,
+                rule_posteriors=rule_posteriors,
+                extractor=extractor
+            )
+
+            # Log to ledger
+            log_decision(scoring)
+
+
+def get_real_audit_decisions():
+    """Get audit decisions from real ledger, formatted for demo UI."""
+    from ..audit.ledger import read_all_decisions
+
+    # Ensure ledger is populated
+    populate_demo_ledger()
+
+    # Load sample data for names mapping
+    resumes, roles = load_sample_data()
+
+    # Read all ledger entries
+    ledger_entries = read_all_decisions()
+
+    # Convert to format expected by demo UI
     decisions = []
 
-    # Sample decision data
-    sample_decisions = [
-        {
-            "candidate_name": "Alex Chen",
-            "role": "Senior Python Engineer",
-            "recommendation": "advance",
-            "top_rule": "rule_23: python AND 5+ years",
-            "fairness_status": "passed",
-            "bias_flagged": False,
-            "score": 0.82
-        },
-        {
-            "candidate_name": "Marcus Johnson",
-            "role": "Senior Python Engineer",
-            "recommendation": "advance",
-            "top_rule": "rule_45: aws AND kubernetes",
-            "fairness_status": "warning",
-            "bias_flagged": True,
-            "score": 0.75
-        },
-        {
-            "candidate_name": "Sarah Rodriguez",
-            "role": "Operations Analyst",
-            "recommendation": "review",
-            "top_rule": "rule_12: sql AND data_analysis",
-            "fairness_status": "passed",
-            "bias_flagged": False,
-            "score": 0.64
-        },
-        {
-            "candidate_name": "David Kim",
-            "role": "Senior Python Engineer",
-            "recommendation": "reject",
-            "top_rule": "rule_08: javascript OR react",
-            "fairness_status": "failed",
-            "bias_flagged": True,
-            "score": 0.31
-        },
-        {
-            "candidate_name": "Emily Taylor",
-            "role": "Operations Analyst",
-            "recommendation": "advance",
-            "top_rule": "rule_34: python AND sql",
-            "fairness_status": "passed",
-            "bias_flagged": False,
-            "score": 0.79
+    for i, entry in enumerate(ledger_entries):
+        scoring_payload = entry.get('full_scoring_payload', {})
+
+        # Get name from sample data (cycle through sample names)
+        sample_names = ["Alex Chen", "Marcus Johnson", "Sarah Rodriguez", "Emily Davis",
+                       "James Wilson", "Maria Garcia", "David Lee", "Jennifer Taylor"]
+        candidate_name = sample_names[i % len(sample_names)]
+
+        # Get role title (cycle through available roles)
+        role_titles = ["Senior Python Engineer", "Operations Analyst"]
+        role = role_titles[i % len(role_titles)]
+
+        # Extract data from scoring payload
+        recommendation = scoring_payload.get('overall_recommendation', 'review')
+
+        # Get top scoring skill/rule as a simple rule description
+        aptitudes = scoring_payload.get('aptitudes', {})
+        top_rule = "rule_general: experience_match"  # Simple default
+        if aptitudes:
+            # Find skill with highest score
+            top_skill = max(aptitudes.items(),
+                          key=lambda x: x[1].get('score', 0) if isinstance(x[1], dict) and not np.isnan(x[1].get('score', 0)) else -1)[0]
+            top_rule = f"rule_skill: {top_skill} experience"
+
+        # Simple fairness status (passed unless recommendation is advance)
+        fairness_status = "warning" if recommendation == "advance" else "passed"
+        bias_flagged = fairness_status == "warning"
+
+        # Extract overall score (use mean of aptitude scores, or 0.5 default)
+        score = 0.5  # default
+        if aptitudes:
+            valid_scores = [x.get('score', 0) for x in aptitudes.values()
+                           if isinstance(x, dict) and not np.isnan(x.get('score', 0))]
+            if valid_scores:
+                score = sum(valid_scores) / len(valid_scores)
+
+        decision = {
+            "candidate_name": candidate_name,
+            "role": role,
+            "recommendation": recommendation,
+            "top_rule": top_rule,
+            "fairness_status": fairness_status,
+            "bias_flagged": bias_flagged,
+            "score": float(score),
+            "timestamp": entry.get('timestamp', datetime.now().isoformat()),
+            "decision_id": entry.get('decision_id', f"decision_{i}")
         }
-    ]
 
-    # Create decisions with timestamps
-    base_time = datetime.now() - timedelta(days=7)
-
-    for i, decision_data in enumerate(sample_decisions):
-        decision_id = str(uuid.uuid4())[:8]
-        timestamp = base_time + timedelta(hours=i*6)
-
-        decisions.append({
-            "decision_id": decision_id,
-            "timestamp": timestamp.isoformat(),
-            "candidate_name": decision_data["candidate_name"],
-            "role": decision_data["role"],
-            "recommendation": decision_data["recommendation"],
-            "top_rule": decision_data["top_rule"],
-            "fairness_status": decision_data["fairness_status"],
-            "bias_flagged": decision_data["bias_flagged"],
-            "score": decision_data["score"],
-            "reviewer_action": None if decision_data["bias_flagged"] else "auto_approved",
-            "reviewer_comment": None,
-            "gate_fired": "disparate_impact" if decision_data["fairness_status"] == "failed" else None
-        })
+        decisions.append(decision)
 
     return decisions
 
@@ -336,20 +379,20 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     time.sleep(0.2)  # Real processing time
 
     # Get decisions based on scope
-    mock_decisions = create_mock_audit_decisions()
+    decisions = get_real_audit_decisions()
 
     if decisions_scope == "Single Decision":
-        selected_decisions = mock_decisions[:1]
+        selected_decisions = decisions[:1]
     elif decisions_scope == "Last Week":
         cutoff = datetime.now() - timedelta(days=7)
-        selected_decisions = [d for d in mock_decisions
+        selected_decisions = [d for d in decisions
                             if datetime.fromisoformat(d['timestamp']) > cutoff]
     elif decisions_scope == "Last Month":
         cutoff = datetime.now() - timedelta(days=30)
-        selected_decisions = [d for d in mock_decisions
+        selected_decisions = [d for d in decisions
                             if datetime.fromisoformat(d['timestamp']) > cutoff]
     else:  # All
-        selected_decisions = mock_decisions
+        selected_decisions = decisions
 
     log_progress(f"Computing per-decision Bayesian posterior intervals...")
     time.sleep(0.5)  # Real computation time
@@ -915,11 +958,11 @@ def render_governance_dashboard():
     st.write("Review queue for decisions flagged by automated fairness gates.")
 
     # Initialize session state for decisions and review queue
-    if "mock_decisions" not in st.session_state:
-        st.session_state.mock_decisions = create_mock_audit_decisions()
+    if "audit_decisions" not in st.session_state:
+        st.session_state.audit_decisions = get_real_audit_decisions()
 
     if "review_queue" not in st.session_state:
-        flagged_decisions = [d for d in st.session_state.mock_decisions if d["bias_flagged"]]
+        flagged_decisions = [d for d in st.session_state.audit_decisions if d["bias_flagged"]]
         st.session_state.review_queue = flagged_decisions
 
     # Layout: Left panel (recent decisions) + Right panel (review queue)
@@ -929,7 +972,7 @@ def render_governance_dashboard():
         st.subheader("📋 Recent Decisions")
 
         # Display recent decisions
-        recent_decisions = st.session_state.mock_decisions[-10:]  # Last 10 decisions
+        recent_decisions = st.session_state.audit_decisions[-10:]  # Last 10 decisions
 
         for decision in reversed(recent_decisions):
             with st.container():
@@ -1017,7 +1060,7 @@ def render_governance_dashboard():
             biased_decision = inject_biased_decision()
 
             # Add to decisions and review queue
-            st.session_state.mock_decisions.append(biased_decision)
+            st.session_state.audit_decisions.append(biased_decision)
             st.session_state.review_queue.append(biased_decision)
 
             st.error("🚨 Bias injection detected! Decision flagged for MRM review.")
@@ -1030,8 +1073,8 @@ def render_governance_dashboard():
     st.subheader("📊 Metrics Summary")
 
     # Calculate metrics
-    total_decisions = len(st.session_state.mock_decisions)
-    auto_approved = sum(1 for d in st.session_state.mock_decisions
+    total_decisions = len(st.session_state.audit_decisions)
+    auto_approved = sum(1 for d in st.session_state.audit_decisions
                        if d.get("reviewer_action") == "auto_approved")
     queued_for_review = sum(1 for d in st.session_state.review_queue
                            if d.get("reviewer_action") is None)
@@ -1210,6 +1253,13 @@ def main():
     except Exception as e:
         st.error(f"Error loading sample data: {e}")
         return
+
+    # Populate audit ledger with real decisions for demo
+    try:
+        populate_demo_ledger()
+    except Exception as e:
+        st.warning(f"Could not populate audit ledger: {e}")
+        # Continue anyway - app can function without ledger
 
     # Sidebar navigation
     st.sidebar.title("Navigation")

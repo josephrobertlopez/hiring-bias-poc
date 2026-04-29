@@ -19,7 +19,7 @@ from src.demo.app import (
     create_prediction_function,
     get_model_features,
     generate_audit_pdf,
-    create_mock_audit_decisions,
+    get_real_audit_decisions,
     inject_biased_decision,
     process_reviewer_action
 )
@@ -161,8 +161,8 @@ def test_governance_dashboard():
     print("Testing governance dashboard...")
 
     # Test mock audit decisions
-    mock_decisions = create_mock_audit_decisions()
-    assert len(mock_decisions) == 5, f"Expected 5 mock decisions, got {len(mock_decisions)}"
+    decisions = get_real_audit_decisions()
+    assert len(decisions) == 16, f"Expected 16 real decisions (8 resumes × 2 roles), got {len(decisions)}"
 
     # Test bias injection
     biased_decision = inject_biased_decision()
@@ -243,7 +243,7 @@ def test_end_to_end_workflow():
     cf_results = analyzer.analyze_counterfactual_fairness([resume], predict_fn)
 
     # 4. Test governance workflow
-    mock_decisions = create_mock_audit_decisions()
+    decisions = get_real_audit_decisions()
     biased_decision = inject_biased_decision()
 
     # 5. Generate audit report
