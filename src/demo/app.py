@@ -18,6 +18,8 @@ from ..fairness.counterfactual import CounterfactualAnalyzer
 from ..aptitude.scorer import score_candidate
 from ..posteriors.rule_reliability import fit_rule_posteriors
 from ..features.rule_miner import FairnessFilteredRuleMiner, RuleMinerConfig
+from ..audit.ledger import log_decision, read_all_decisions
+from ..fairness.metrics import FairnessMetricsCalculator
 
 # Demo data path
 DEMO_DATA_PATH = Path(__file__).parent / "sample_data"
@@ -152,6 +154,130 @@ def create_prediction_function(role: JobRole):
             return 0.5
 
     return predict_fn, extractor
+
+
+@st.cache_data
+def create_mock_audit_decisions():
+    """Create mock audit decisions for governance dashboard."""
+    import uuid
+    from datetime import datetime, timedelta
+
+    decisions = []
+
+    # Sample decision data
+    sample_decisions = [
+        {
+            "candidate_name": "Alex Chen",
+            "role": "Senior Python Engineer",
+            "recommendation": "advance",
+            "top_rule": "rule_23: python AND 5+ years",
+            "fairness_status": "passed",
+            "bias_flagged": False,
+            "score": 0.82
+        },
+        {
+            "candidate_name": "Marcus Johnson",
+            "role": "Senior Python Engineer",
+            "recommendation": "advance",
+            "top_rule": "rule_45: aws AND kubernetes",
+            "fairness_status": "warning",
+            "bias_flagged": True,
+            "score": 0.75
+        },
+        {
+            "candidate_name": "Sarah Rodriguez",
+            "role": "Operations Analyst",
+            "recommendation": "review",
+            "top_rule": "rule_12: sql AND data_analysis",
+            "fairness_status": "passed",
+            "bias_flagged": False,
+            "score": 0.64
+        },
+        {
+            "candidate_name": "David Kim",
+            "role": "Senior Python Engineer",
+            "recommendation": "reject",
+            "top_rule": "rule_08: javascript OR react",
+            "fairness_status": "failed",
+            "bias_flagged": True,
+            "score": 0.31
+        },
+        {
+            "candidate_name": "Emily Taylor",
+            "role": "Operations Analyst",
+            "recommendation": "advance",
+            "top_rule": "rule_34: python AND sql",
+            "fairness_status": "passed",
+            "bias_flagged": False,
+            "score": 0.79
+        }
+    ]
+
+    # Create decisions with timestamps
+    base_time = datetime.now() - timedelta(days=7)
+
+    for i, decision_data in enumerate(sample_decisions):
+        decision_id = str(uuid.uuid4())[:8]
+        timestamp = base_time + timedelta(hours=i*6)
+
+        decisions.append({
+            "decision_id": decision_id,
+            "timestamp": timestamp.isoformat(),
+            "candidate_name": decision_data["candidate_name"],
+            "role": decision_data["role"],
+            "recommendation": decision_data["recommendation"],
+            "top_rule": decision_data["top_rule"],
+            "fairness_status": decision_data["fairness_status"],
+            "bias_flagged": decision_data["bias_flagged"],
+            "score": decision_data["score"],
+            "reviewer_action": None if decision_data["bias_flagged"] else "auto_approved",
+            "reviewer_comment": None,
+            "gate_fired": "disparate_impact" if decision_data["fairness_status"] == "failed" else None
+        })
+
+    return decisions
+
+
+def inject_biased_decision():
+    """Simulate injecting a biased model decision."""
+    import uuid
+    from datetime import datetime
+
+    # Create a biased decision
+    decision_id = str(uuid.uuid4())[:8]
+
+    biased_decision = {
+        "decision_id": decision_id,
+        "timestamp": datetime.now().isoformat(),
+        "candidate_name": "Simulated Candidate",
+        "role": "Senior Python Engineer",
+        "recommendation": "reject",
+        "top_rule": "BIASED_rule_99: gender_proxy_signal",
+        "fairness_status": "failed",
+        "bias_flagged": True,
+        "score": 0.23,
+        "reviewer_action": None,
+        "reviewer_comment": None,
+        "gate_fired": "equalized_odds_gap",
+        "simulation": True
+    }
+
+    return biased_decision
+
+
+def process_reviewer_action(decision_id: str, action: str, comment: str):
+    """Process MRM reviewer action on a flagged decision."""
+    from datetime import datetime
+
+    # In a real system, this would update the database
+    # For demo, we just return the updated decision
+    return {
+        "decision_id": decision_id,
+        "reviewer_action": action,
+        "reviewer_comment": comment,
+        "reviewed_at": datetime.now().isoformat(),
+        "reviewer_id": "demo_reviewer"
+    }
 
 
 def render_honesty_banner():
@@ -373,25 +499,152 @@ def render_governance_dashboard():
     st.title("Model Risk Management Dashboard")
     st.write("Review queue for decisions flagged by automated fairness gates.")
 
-    st.info("🔧 Governance dashboard implementation coming in next phase.")
+    # Initialize session state for decisions and review queue
+    if "mock_decisions" not in st.session_state:
+        st.session_state.mock_decisions = create_mock_audit_decisions()
 
-    # Placeholder layout structure
+    if "review_queue" not in st.session_state:
+        flagged_decisions = [d for d in st.session_state.mock_decisions if d["bias_flagged"]]
+        st.session_state.review_queue = flagged_decisions
+
+    # Layout: Left panel (recent decisions) + Right panel (review queue)
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.subheader("Recent Decisions")
-        st.write("List of recent decisions from audit ledger will appear here.")
+        st.subheader("📋 Recent Decisions")
+
+        # Display recent decisions
+        recent_decisions = st.session_state.mock_decisions[-10:]  # Last 10 decisions
+
+        for decision in reversed(recent_decisions):
+            with st.container():
+                # Status indicator
+                if decision["fairness_status"] == "passed":
+                    status_icon = "✅"
+                elif decision["fairness_status"] == "warning":
+                    status_icon = "⚠️"
+                else:
+                    status_icon = "❌"
+
+                st.markdown(f"""
+                **{status_icon} {decision['decision_id']}** | {decision['candidate_name']} → {decision['role']}
+                - **Recommendation:** {decision['recommendation']}
+                - **Top Rule:** {decision['top_rule']}
+                - **Score:** {decision['score']:.3f}
+                - **Status:** {decision['fairness_status']}
+                """)
+                st.divider()
 
     with col2:
-        st.subheader("MRM Review Queue")
-        st.write("Decisions flagged for human review will appear here.")
+        st.subheader("🚨 MRM Review Queue")
 
-    st.subheader("Actions")
-    if st.button("🚨 Inject Biased Model Variant (Simulation)", key="bias_injection"):
-        st.warning("Bias injection simulation will be implemented in next phase.")
+        if not st.session_state.review_queue:
+            st.success("✅ No decisions currently flagged for review")
+        else:
+            st.error(f"⚠️ {len(st.session_state.review_queue)} decisions require MRM review")
 
-    st.subheader("Metrics Summary")
-    st.write("Last 30 decisions: X approved by gate, Y queued for review, Z rejected by reviewer.")
+            # Display flagged decisions requiring review
+            for i, decision in enumerate(st.session_state.review_queue):
+                if decision.get("reviewer_action") is None:  # Not yet reviewed
+                    with st.expander(f"🚨 {decision['decision_id']} - {decision['candidate_name']}", expanded=True):
+
+                        st.write(f"**Gate Fired:** {decision.get('gate_fired', 'Unknown')}")
+                        st.write(f"**Threshold Breached:** Fairness gate failure")
+                        st.write(f"**Top Rule:** {decision['top_rule']}")
+                        st.write(f"**Score:** {decision['score']:.3f}")
+
+                        if decision.get("simulation"):
+                            st.warning("🔬 **SIMULATION:** This is a synthetic bias injection for demonstration")
+
+                        # Reviewer action controls
+                        col_action, col_comment = st.columns([1, 2])
+
+                        with col_action:
+                            action = st.selectbox(
+                                "MRM Reviewer Action:",
+                                ["", "Approve", "Reject", "Request More Info", "Escalate"],
+                                key=f"action_{decision['decision_id']}"
+                            )
+
+                        with col_comment:
+                            comment = st.text_input(
+                                "Reviewer Comment:",
+                                key=f"comment_{decision['decision_id']}"
+                            )
+
+                        if st.button(f"Submit Review", key=f"submit_{decision['decision_id']}"):
+                            if action and comment:
+                                # Process the reviewer action
+                                result = process_reviewer_action(decision['decision_id'], action, comment)
+
+                                # Update decision in queue
+                                for j, d in enumerate(st.session_state.review_queue):
+                                    if d['decision_id'] == decision['decision_id']:
+                                        st.session_state.review_queue[j].update({
+                                            "reviewer_action": action,
+                                            "reviewer_comment": comment,
+                                            "reviewed_at": result["reviewed_at"]
+                                        })
+
+                                st.success(f"✅ Review submitted for {decision['decision_id']}")
+                                st.rerun()
+                            else:
+                                st.error("Please select an action and provide a comment")
+
+    # Actions Section
+    st.subheader("🛠️ Actions")
+
+    col_bias, col_info = st.columns([1, 2])
+
+    with col_bias:
+        if st.button("🚨 Inject Biased Model Variant", key="bias_injection"):
+            # Generate biased decision
+            biased_decision = inject_biased_decision()
+
+            # Add to decisions and review queue
+            st.session_state.mock_decisions.append(biased_decision)
+            st.session_state.review_queue.append(biased_decision)
+
+            st.error("🚨 Bias injection detected! Decision flagged for MRM review.")
+            st.rerun()
+
+    with col_info:
+        st.info("**SIMULATION ONLY:** This button injects a deliberately biased decision to demonstrate the governance workflow. The next decision will use biased rule weights, trigger fairness gates, and land in the review queue.")
+
+    # Metrics Summary
+    st.subheader("📊 Metrics Summary")
+
+    # Calculate metrics
+    total_decisions = len(st.session_state.mock_decisions)
+    auto_approved = sum(1 for d in st.session_state.mock_decisions
+                       if d.get("reviewer_action") == "auto_approved")
+    queued_for_review = sum(1 for d in st.session_state.review_queue
+                           if d.get("reviewer_action") is None)
+    rejected_by_reviewer = sum(1 for d in st.session_state.review_queue
+                              if d.get("reviewer_action") == "Reject")
+
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+
+    with col_m1:
+        st.metric("Total Decisions", total_decisions)
+
+    with col_m2:
+        st.metric("Auto-Approved", auto_approved)
+
+    with col_m3:
+        st.metric("Queued for Review", queued_for_review)
+
+    with col_m4:
+        st.metric("Rejected by Reviewer", rejected_by_reviewer)
+
+    # Show reviewed decisions
+    reviewed_decisions = [d for d in st.session_state.review_queue if d.get("reviewer_action")]
+    if reviewed_decisions:
+        st.subheader("✅ Recently Reviewed Decisions")
+
+        for decision in reviewed_decisions[-5:]:  # Last 5 reviewed
+            action_icon = "✅" if decision["reviewer_action"] == "Approve" else "❌"
+            st.write(f"{action_icon} **{decision['decision_id']}** - {decision['reviewer_action']}: {decision['reviewer_comment']}")
 
 
 def render_generate_report():
