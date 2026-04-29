@@ -520,46 +520,232 @@ def render_honesty_banner():
 
 def render_candidate_view(resumes: Dict, roles: Dict):
     """Render the Candidate View screen (home screen)."""
-    st.title("Candidate View")
-    st.write("Select a candidate and role to see per-skill aptitude breakdown with explanations.")
+    st.title("Candidate Assessment")
+    st.write("Select a candidate and role to see detailed per-skill aptitude breakdown with rule-based explanations.")
 
     # Sidebar selectors
     st.sidebar.subheader("Select Candidate & Role")
 
     resume_options = {f"{data['name']} ({resume_id})": resume_id
                      for resume_id, data in resumes.items()}
-    selected_resume_key = st.sidebar.selectbox("Candidate:", list(resume_options.keys()))
+    selected_resume_key = st.sidebar.selectbox("Candidate:", list(resume_options.keys()), key="cv_resume")
     selected_resume_id = resume_options[selected_resume_key]
 
     role_options = {f"{data['title']} ({role_id})": role_id
                    for role_id, data in roles.items()}
-    selected_role_key = st.sidebar.selectbox("Role:", list(role_options.keys()))
+    selected_role_key = st.sidebar.selectbox("Role:", list(role_options.keys()), key="cv_role")
     selected_role_id = role_options[selected_role_key]
 
-    # Main content
+    # Get selected data
     selected_candidate = resumes[selected_resume_id]
     selected_role_data = roles[selected_role_id]
+    resume = selected_candidate['resume']
+    role = selected_role_data['role']
 
-    st.subheader(f"Candidate: {selected_candidate['name']}")
-    st.subheader(f"Role: {selected_role_data['title']}")
+    st.subheader(f"Assessment: {selected_candidate['name']} → {selected_role_data['title']}")
 
-    # Placeholder for actual scoring - will implement in next items
-    st.info("🔧 Aptitude scoring integration coming in next implementation phase.")
+    # Score candidate button
+    if st.button("🎯 Generate Assessment", key="score_candidate", type="primary"):
 
-    # Show basic candidate info
-    with st.expander("Candidate Details", expanded=False):
-        resume = selected_candidate['resume']
-        st.write(f"**Skills:** {', '.join(resume.skill_tokens)}")
-        st.write(f"**Experience:** {resume.years_experience} years")
-        st.write(f"**Education:** {resume.education_level}")
-        st.write(f"**Domains:** {', '.join(resume.domain_background)}")
+        with st.spinner("Computing aptitude scores..."):
 
-    with st.expander("Role Requirements", expanded=False):
-        role = selected_role_data['role']
-        st.write(f"**Required Skills:** {', '.join(role.required_skills)}")
-        st.write(f"**Preferred Skills:** {', '.join(role.preferred_skills)}")
-        st.write(f"**Experience Range:** {role.min_experience}-{role.max_experience} years")
-        st.write(f"**Seniority:** {role.seniority_level}")
+            try:
+                # Get model components for scoring
+                vocab, train_resumes, train_labels = get_demo_model_components()
+                extractor = ContentNeutralExtractor(vocab, role)
+
+                # Train rule miner
+                rule_config = RuleMinerConfig(
+                    min_support=0.1,
+                    min_confidence=0.6,
+                    min_lift=1.1,
+                    top_k=30
+                )
+                rule_miner = FairnessFilteredRuleMiner(rule_config)
+                rule_miner.mine_rules(train_resumes, train_labels, extractor)
+
+                # Fit rule posteriors
+                rule_posteriors = fit_rule_posteriors(
+                    rule_miner.rules,
+                    train_resumes,
+                    train_labels,
+                    extractor,
+                    n_folds=3
+                )
+
+                # Score the candidate using the real aptitude scorer
+                scoring = score_candidate(
+                    resume=resume,
+                    role=role,
+                    rules=rule_miner.rules,
+                    rule_posteriors=rule_posteriors,
+                    extractor=extractor
+                )
+
+                # Main assessment layout
+                col_main, col_details = st.columns([2, 1])
+
+                with col_main:
+                    # Overall recommendation badge
+                    if scoring.overall_recommendation == "advance":
+                        st.success(f"🎯 **RECOMMENDATION: ADVANCE**")
+                    elif scoring.overall_recommendation == "review":
+                        st.warning(f"⚠️ **RECOMMENDATION: REVIEW**")
+                    else:
+                        st.error(f"❌ **RECOMMENDATION: DO NOT ADVANCE**")
+
+                    # Overall confidence interval
+                    low, high = scoring.overall_uncertainty
+                    st.write(f"**Overall Confidence:** {low:.1%} - {high:.1%}")
+
+                    st.divider()
+
+                    # Per-skill aptitude breakdown
+                    st.subheader("📊 Per-Skill Aptitude Breakdown")
+
+                    # Get required skills for this role
+                    required_skills = role.required_skills
+                    preferred_skills = role.preferred_skills
+
+                    # Display required skills first
+                    if required_skills:
+                        st.write("**Required Skills:**")
+
+                        for skill in required_skills:
+                            if skill in scoring.aptitudes:
+                                aptitude = scoring.aptitudes[skill]
+
+                                # Skill header
+                                st.write(f"**{skill.upper()}**")
+
+                                # Score with progress bar
+                                score_pct = int(aptitude.score * 100)
+                                st.progress(aptitude.score, text=f"Score: {score_pct}%")
+
+                                # Confidence interval whiskers
+                                low_ci, high_ci = aptitude.uncertainty_interval
+                                st.write(f"95% Confidence Interval: {low_ci:.1%} - {high_ci:.1%}")
+
+                                # Contributing rules
+                                if aptitude.contributing_rules:
+                                    st.write("Contributing Rules:")
+                                    for rule_firing in aptitude.contributing_rules:
+                                        contribution = rule_firing.contribution_to_skill
+                                        reliability = rule_firing.posterior_mean_reliability
+
+                                        # Plain English explanation from antecedent
+                                        rule_text = rule_firing.antecedent.replace("AND", "and").replace("OR", "or")
+
+                                        st.write(f"• `{rule_firing.rule_id}`: {rule_text} "
+                                                f"→ +{contribution:.2f} to {skill} aptitude, "
+                                                f"posterior reliability {reliability:.2f} ± "
+                                                f"{(rule_firing.posterior_interval[1] - rule_firing.posterior_interval[0])/2:.2f}")
+
+                                # Fairness filter status
+                                fairness_icon = "✅" if aptitude.fairness_filter_passed else "❌"
+                                st.write(f"Fairness Filter: {fairness_icon}")
+
+                                st.divider()
+                            else:
+                                st.write(f"**{skill.upper()}:** No evidence found")
+                                st.progress(0.0, text="Score: 0%")
+                                st.write("No matching rules fired for this skill")
+                                st.divider()
+
+                    # Display preferred skills
+                    preferred_in_aptitudes = [s for s in preferred_skills if s in scoring.aptitudes]
+                    if preferred_in_aptitudes:
+                        st.write("**Preferred Skills:**")
+
+                        for skill in preferred_in_aptitudes:
+                            aptitude = scoring.aptitudes[skill]
+
+                            st.write(f"**{skill.upper()}** (Preferred)")
+                            score_pct = int(aptitude.score * 100)
+                            st.progress(aptitude.score, text=f"Score: {score_pct}%")
+
+                            low_ci, high_ci = aptitude.uncertainty_interval
+                            st.write(f"95% CI: {low_ci:.1%} - {high_ci:.1%}")
+
+                            # Contributing rules (simplified for preferred)
+                            if aptitude.contributing_rules:
+                                top_rule = aptitude.contributing_rules[0]
+                                rule_text = top_rule.antecedent.replace("AND", "and").replace("OR", "or")
+                                st.write(f"• Top rule: {rule_text}")
+
+                            st.divider()
+
+                with col_details:
+                    # Right panel: "Why this score" JSON payload
+                    st.subheader("🔍 Why This Score")
+
+                    with st.expander("Full CandidateScoring Payload", expanded=False):
+                        # Convert scoring to dict for JSON display
+                        import json
+
+                        scoring_dict = {
+                            "decision_id": scoring.decision_id,
+                            "model_version": scoring.model_version,
+                            "timestamp": scoring.timestamp,
+                            "overall_recommendation": scoring.overall_recommendation,
+                            "overall_uncertainty": scoring.overall_uncertainty,
+                            "aptitudes": {}
+                        }
+
+                        for skill, apt in scoring.aptitudes.items():
+                            scoring_dict["aptitudes"][skill] = {
+                                "skill": apt.skill,
+                                "score": apt.score,
+                                "uncertainty_interval": apt.uncertainty_interval,
+                                "fairness_filter_passed": apt.fairness_filter_passed,
+                                "contributing_rules": [
+                                    {
+                                        "rule_id": rule.rule_id,
+                                        "antecedent": rule.antecedent,
+                                        "posterior_mean_reliability": rule.posterior_mean_reliability,
+                                        "posterior_interval": rule.posterior_interval,
+                                        "contribution_to_skill": rule.contribution_to_skill
+                                    }
+                                    for rule in apt.contributing_rules
+                                ]
+                            }
+
+                        st.json(scoring_dict, expanded=False)
+
+                    # Additional candidate info
+                    st.subheader("📋 Candidate Details")
+                    st.write(f"**Skills:** {', '.join(resume.skill_tokens)}")
+                    st.write(f"**Experience:** {resume.years_experience} years")
+                    st.write(f"**Education:** {resume.education_level}")
+                    st.write(f"**Domains:** {', '.join(resume.domain_background)}")
+
+                    st.subheader("🎯 Role Requirements")
+                    st.write(f"**Required:** {', '.join(role.required_skills)}")
+                    st.write(f"**Preferred:** {', '.join(role.preferred_skills)}")
+                    st.write(f"**Experience:** {role.min_experience}-{role.max_experience} years")
+                    st.write(f"**Level:** {role.seniority_level}")
+
+            except Exception as e:
+                st.error(f"❌ Error generating assessment: {str(e)}")
+                st.write("This may be due to insufficient training data or model configuration issues.")
+    else:
+        # Show instructions when not scored
+        st.info("👆 Select a candidate and role above, then click 'Generate Assessment' to see detailed aptitude breakdown with rule-based explanations.")
+
+        # Show basic info while waiting
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("👤 Selected Candidate")
+            st.write(f"**Name:** {selected_candidate['name']}")
+            st.write(f"**Skills:** {', '.join(resume.skill_tokens)}")
+            st.write(f"**Experience:** {resume.years_experience} years")
+
+        with col2:
+            st.subheader("💼 Selected Role")
+            st.write(f"**Title:** {selected_role_data['title']}")
+            st.write(f"**Required Skills:** {', '.join(role.required_skills)}")
+            st.write(f"**Experience Range:** {role.min_experience}-{role.max_experience} years")
 
 
 def render_counterfactual_matrix(resumes: Dict, roles: Dict):
