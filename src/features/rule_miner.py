@@ -1,8 +1,4 @@
-"""FP-growth rule miner with fairness filtering.
-
-Discovers frequent skill combinations and filters out rules containing
-protected attributes or their proxies.
-"""
+"""FP-growth rule miner with fairness filtering."""
 
 from typing import Dict, List, Set, Tuple, Any, Optional
 from dataclasses import dataclass
@@ -43,11 +39,6 @@ class FairnessFilteredRuleMiner:
     """
 
     def __init__(self, config: RuleMinerConfig = None):
-        """Initialize rule miner.
-
-        Args:
-            config: Mining configuration parameters
-        """
         self.config = config or RuleMinerConfig()
         self.rules: List[AssociationRule] = []
         self.frequent_itemsets: Dict[int, List[Tuple[Set[str], float]]] = {}
@@ -81,16 +72,7 @@ class FairnessFilteredRuleMiner:
                    resumes: List[Resume],
                    labels: List[bool],
                    extractor: ContentNeutralExtractor) -> List[AssociationRule]:
-        """Mine association rules from resumes with fairness filtering.
-
-        Args:
-            resumes: List of resumes to mine
-            labels: Hiring decisions (True = hired)
-            extractor: Feature extractor for content-neutral features
-
-        Returns:
-            List of discovered association rules
-        """
+        """Mine association rules from resumes with fairness filtering."""
         # Convert resumes to transaction format
         transactions = self._resumes_to_transactions(resumes, labels, extractor)
 
@@ -113,16 +95,6 @@ class FairnessFilteredRuleMiner:
                                 resumes: List[Resume],
                                 labels: List[bool],
                                 extractor: ContentNeutralExtractor) -> List[Set[str]]:
-        """Convert resumes to transaction format for pattern mining.
-
-        Args:
-            resumes: List of resumes
-            labels: Hiring decisions
-            extractor: Feature extractor
-
-        Returns:
-            List of item sets (transactions)
-        """
         transactions = []
 
         for resume, hired in zip(resumes, labels):
@@ -158,14 +130,6 @@ class FairnessFilteredRuleMiner:
         return transactions
 
     def _find_frequent_itemsets(self, transactions: List[Set[str]]) -> Dict[int, List[Tuple[Set[str], float]]]:
-        """Find frequent itemsets using Apriori-like algorithm.
-
-        Args:
-            transactions: List of item sets
-
-        Returns:
-            Dictionary mapping length -> [(itemset, support), ...]
-        """
         n_transactions = len(transactions)
         min_support_count = max(1, int(self.config.min_support * n_transactions))
 
@@ -208,15 +172,6 @@ class FairnessFilteredRuleMiner:
         return frequent_itemsets
 
     def _generate_candidates(self, frequent_prev: List[Tuple[Set[str], float]], k: int) -> List[Set[str]]:
-        """Generate candidate k-itemsets from frequent (k-1)-itemsets.
-
-        Args:
-            frequent_prev: Frequent (k-1)-itemsets
-            k: Length of candidates to generate
-
-        Returns:
-            List of candidate k-itemsets
-        """
         candidates = []
         itemsets = [itemset for itemset, _ in frequent_prev]
 
@@ -230,14 +185,6 @@ class FairnessFilteredRuleMiner:
         return candidates
 
     def _generate_association_rules(self, transactions: List[Set[str]]) -> List[AssociationRule]:
-        """Generate association rules from frequent itemsets.
-
-        Args:
-            transactions: Original transactions for confidence calculation
-
-        Returns:
-            List of association rules
-        """
         rules = []
         n_transactions = len(transactions)
 
@@ -294,28 +241,10 @@ class FairnessFilteredRuleMiner:
         return rules
 
     def _get_support(self, itemset: Set[str], transactions: List[Set[str]], n_transactions: int) -> float:
-        """Calculate support for an itemset.
-
-        Args:
-            itemset: Set of items
-            transactions: List of transactions
-            n_transactions: Total number of transactions
-
-        Returns:
-            Support value [0, 1]
-        """
         count = sum(1 for transaction in transactions if itemset.issubset(transaction))
         return count / n_transactions
 
     def _filter_protected_rules(self, rules: List[AssociationRule]) -> List[AssociationRule]:
-        """Filter out rules containing protected attributes or proxies.
-
-        Args:
-            rules: List of association rules
-
-        Returns:
-            Filtered list of rules
-        """
         filtered_rules = []
 
         for rule in rules:
@@ -340,14 +269,6 @@ class FairnessFilteredRuleMiner:
         return filtered_rules
 
     def _is_protected_attribute(self, item: str) -> bool:
-        """Check if an item represents a protected attribute or proxy.
-
-        Args:
-            item: Item to check
-
-        Returns:
-            True if item should be filtered out
-        """
         item_lower = item.lower()
 
         # Direct match with protected attributes
@@ -369,15 +290,7 @@ class FairnessFilteredRuleMiner:
         return False
 
     def get_rule_features(self, resume: Resume, extractor: ContentNeutralExtractor) -> Dict[str, int]:
-        """Generate binary features for each rule (rule_k_fires).
-
-        Args:
-            resume: Resume to generate features for
-            extractor: Feature extractor
-
-        Returns:
-            Dictionary of rule_k_fires features
-        """
+        """Generate binary features for each rule."""
         features = {}
 
         # Convert resume to transaction format
@@ -394,11 +307,7 @@ class FairnessFilteredRuleMiner:
         return features
 
     def get_rule_explanations(self) -> List[Dict[str, Any]]:
-        """Get human-readable explanations for each rule.
-
-        Returns:
-            List of rule explanations
-        """
+        """Get human-readable explanations for each rule."""
         explanations = []
 
         for i, rule in enumerate(self.rules):
@@ -416,14 +325,6 @@ class FairnessFilteredRuleMiner:
         return explanations
 
     def _rule_to_text(self, rule: AssociationRule) -> str:
-        """Convert rule to human-readable text.
-
-        Args:
-            rule: Association rule
-
-        Returns:
-            Human-readable rule description
-        """
         antecedent_text = ", ".join(sorted(rule.antecedent))
         consequent_text = ", ".join(sorted(rule.consequent))
 

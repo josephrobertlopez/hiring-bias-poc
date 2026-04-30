@@ -1,8 +1,4 @@
-"""Content-neutral feature extraction from resumes.
-
-Extracts numeric and categorical features without using protected attributes
-or their proxies (gender, race, age, school prestige, neighborhood/zip).
-"""
+"""Content-neutral feature extraction from resumes."""
 
 from typing import Dict, List, Any, Set
 import numpy as np
@@ -23,19 +19,9 @@ class JobRole:
 
 
 class ContentNeutralExtractor:
-    """Extract content-neutral features from resumes.
-
-    Features focus on job-relevant qualifications without using protected
-    attributes or their known proxies.
-    """
+    """Extract content-neutral features from resumes."""
 
     def __init__(self, vocabulary: SkillVocabulary, target_role: JobRole):
-        """Initialize extractor.
-
-        Args:
-            vocabulary: Skill vocabulary for tokenization
-            target_role: Target job role specification
-        """
         self.vocabulary = vocabulary
         self.target_role = target_role
 
@@ -50,14 +36,7 @@ class ContentNeutralExtractor:
         }
 
     def extract_features(self, resume: Resume) -> Dict[str, Any]:
-        """Extract content-neutral features from resume.
-
-        Args:
-            resume: Resume to extract features from
-
-        Returns:
-            Dictionary of feature_name -> feature_value
-        """
+        """Extract content-neutral features from resume."""
         features = {}
 
         # Skill overlap features
