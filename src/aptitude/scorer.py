@@ -230,19 +230,20 @@ def _resume_to_transaction_for_scoring(resume: Resume, extractor) -> set:
     features = extractor.extract_features(resume)
     transaction = set()
 
-    # Add skill tokens
+    # Add skill tokens directly (matches rule miner format)
     transaction.update(resume.skill_tokens)
 
     # Add binned features that rules might reference
-    if 'experience_bin' in features:
-        transaction.add(features['experience_bin'])
-    if 'education_level' in features:
-        transaction.add(features['education_level'])
-    if 'seniority_level' in features:
-        transaction.add(features['seniority_level'])
+    experience_bin = features.get('experience_bin', 'unknown')
+    if experience_bin != 'unknown':
+        transaction.add(f"experience_{experience_bin}")
 
-    # Add domain background
-    transaction.update(resume.domain_background)
+    seniority = features.get('seniority_level', 'unknown')
+    if seniority != 'unknown':
+        transaction.add(f"seniority_{seniority}")
+
+    # Exclude education_level and domain_background to match rule miner changes
+    # (these were removed from rule mining to avoid protected attributes)
 
     return transaction
 

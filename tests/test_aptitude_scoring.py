@@ -231,3 +231,41 @@ def test_fairness_filter_propagation():
 
     python_aptitude = scoring.aptitudes['python']
     assert python_aptitude.fairness_filter_passed == False
+
+
+def test_rule_fires_on_superset_skills():
+    """Rule with antecedent {python, sql} should fire on resume with skills {python, sql, java}."""
+    resume = Resume(['python', 'sql', 'java'], 3.0, 'bachelor', ['tech'], {})
+    role = JobRole(
+        required_skills={'python', 'sql'},
+        preferred_skills=set(),
+        min_experience=2.0,
+        max_experience=5.0,
+        role_keywords={'developer'},
+        seniority_level='mid'
+    )
+
+    # Rule: {python, sql} → advance
+    rules = [
+        AssociationRule(
+            antecedent={'python', 'sql'},
+            consequent={'advance'},
+            support=0.5, confidence=0.8, lift=1.2, conviction=1.5
+        )
+    ]
+
+    rule_posteriors = {
+        'rule_0': RulePosterior('rule_0', 8.0, 2.0, 10, True)
+    }
+
+    extractor = Mock()
+    extractor.extract_features.return_value = {'experience_bin': 'mid_level', 'seniority_level': 'mid'}
+
+    scoring = score_candidate(resume, role, rules, rule_posteriors, extractor)
+
+    # Both python and sql aptitudes should have contributing rules
+    python_aptitude = scoring.aptitudes['python']
+    sql_aptitude = scoring.aptitudes['sql']
+
+    assert len(python_aptitude.contributing_rules) > 0, "Python skill should have contributing rules"
+    assert len(sql_aptitude.contributing_rules) > 0, "SQL skill should have contributing rules"

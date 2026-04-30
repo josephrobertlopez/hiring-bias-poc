@@ -328,7 +328,13 @@ class FairnessFilteredRuleMiner:
                     has_protected = True
                     break
 
-            if not has_protected:
+            # Filter out rules with outcomes in antecedents (these can't fire on candidates)
+            has_outcome_in_antecedent = any(
+                outcome in rule.antecedent
+                for outcome in ['advance', 'do_not_advance']
+            )
+
+            if not has_protected and not has_outcome_in_antecedent:
                 filtered_rules.append(rule)
 
         return filtered_rules
