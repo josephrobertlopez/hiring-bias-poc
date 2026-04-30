@@ -205,21 +205,12 @@ def render_counterfactual_matrix(resumes: Dict, roles: Dict):
         - ✅ **Pass:** Score differences are small (≤ threshold) → Fair
         - ❌ **Fail:** Score differences are large (> threshold) → Potential bias
 
-        **Banking Compliance:** This analysis helps satisfy model risk management requirements for bias testing in automated decision systems.
         """)
 
     with st.expander("Limitations"):
         st.write("""
-        **Important Limitations:**
-        - Requires demographic data with swappable values
-        - Cannot detect all forms of proxy discrimination
-        - Synthetic demo data may not reflect real-world bias patterns
-        - Single-candidate analysis may not generalize to population-level fairness
-
-        **Production Usage:**
-        - Run on representative samples of candidates
-        - Combine with other fairness metrics (disparate impact, equalized odds)
-        - Regular monitoring as part of model validation process
+        **Limitations:** Requires demographic data, cannot detect all proxy discrimination, synthetic demo data
+        **Production:** Use with representative samples and other fairness metrics
         """)
 
     # Compliance footer

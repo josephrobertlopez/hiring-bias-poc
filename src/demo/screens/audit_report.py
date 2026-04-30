@@ -39,8 +39,6 @@ def render_generate_report():
         for component, default in components.items():
             st.checkbox(component, value=default, disabled=True, help="All components required for banking compliance")
 
-        # Banking compliance notice
-        st.info("🏛️ **Banking Compliance:** All report components are required for SR 11-7 model risk management documentation.")
 
     with col2:
         st.subheader("📄 Report Preview")
@@ -149,7 +147,6 @@ def render_generate_report():
             with st.expander("🐛 Error Details"):
                 st.code(str(e))
 
-            st.info("💡 **Troubleshooting:** Check that all required dependencies are installed and the audit ledger is populated.")
 
     # Report information
     st.markdown("---")
@@ -157,51 +154,16 @@ def render_generate_report():
 
     with st.expander("📖 Report Contents"):
         st.write("""
-        **Section 1: Model Card (SR 11-7)**
-        - Model purpose, theory, and assumptions
-        - Performance limitations and caveats
-        - Monitoring and validation plan
-        - Version control and change management
-
-        **Section 2: Fairness Audit (NYC LL144)**
-        - Disparate impact analysis by protected class
-        - Intersectional bias assessment
-        - Statistical significance testing
-        - Compliance with 4/5 rule and other thresholds
-
-        **Section 3: FCRA Adverse Action Notices**
-        - Individualized notices for rejected candidates
-        - Primary reason codes and explanations
-        - Consumer reporting agency information
-        - Appeal and dispute procedures
-
-        **Section 4: Conceptual Soundness Memo**
-        - Methodological foundation and justification
-        - SR 11-7 compliance documentation
-        - Key model advantages and limitations
-        - Independent validation considerations
+        **Section 1:** Model Card (SR 11-7)
+        **Section 2:** Fairness Audit (NYC LL144)
+        **Section 3:** FCRA Adverse Action Notices
+        **Section 4:** Conceptual Soundness Memo
         """)
 
     with st.expander("🎯 Use Cases"):
         st.write("""
-        **Regulatory Compliance:**
-        - Bank examiner documentation
-        - Model risk management files
-        - Fair lending compliance evidence
-        - Employment law compliance support
-
-        **Internal Governance:**
-        - Model validation committee review
-        - Risk management oversight
-        - Audit trail maintenance
-        - Change control documentation
-
-        **External Stakeholders:**
-        - Regulatory submissions
-        - Third-party audits
-        - Legal discovery support
-        - Vendor management documentation
+        **Regulatory Compliance:** Bank examiner documentation, model risk management
+        **Internal Governance:** Model validation committee review, risk oversight
+        **External Stakeholders:** Regulatory submissions, third-party audits
         """)
 
-    # Compliance footer
-    st.info("🏛️ **Regulatory Note:** These reports support SR 11-7 model risk management requirements and provide documentation for fair lending examinations.")

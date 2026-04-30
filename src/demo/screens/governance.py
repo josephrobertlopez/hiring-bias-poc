@@ -204,18 +204,11 @@ def render_governance_dashboard():
                 st.subheader("Decision Volume")
                 st.bar_chart(df_chart.set_index("Date")["Total Decisions"])
 
-    # Compliance footer
     st.markdown("---")
-    st.info("🏛️ **Banking MRM Compliance:** This dashboard supports ongoing model validation and bias monitoring requirements per SR 11-7 and regulatory guidance.")
 
     # Technical details
     with st.expander("🔧 Technical Configuration"):
-        st.write("**Bias Detection Gates:**")
-        st.write("• Disparate Impact: 4/5 rule (80% threshold)")
-        st.write("• Equalized Odds: Gap ≤ 0.10")
-        st.write("• Calibration: ECE ≤ 0.05")
-        st.write("• Counterfactual: |Δ| ≤ 0.01")
-
-        st.write("**Monitoring Frequency:** Real-time with nightly batch validation")
-        st.write("**Alerting:** Automatic flags for manual review")
-        st.write("**Retention:** 12-month rolling audit trail")
+        st.write("""
+        **Bias Detection Gates:** Disparate Impact (4/5 rule), Equalized Odds (≤0.10), Calibration (≤0.05), Counterfactual (≤0.01)
+        **Monitoring:** Real-time with nightly validation, automatic flags for review
+        """)

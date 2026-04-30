@@ -93,14 +93,12 @@ def get_demo_model_components():
     extractor = ContentNeutralExtractor(vocab, sample_role)
 
     # Create and configure rule miner
-    # Demo thresholds: extremely low for small dataset (8 samples) to maximize firing distribution
-    # Production would use higher thresholds tuned on real hiring data
     rule_config = RuleMinerConfig(
-        min_support=0.01,      # Demo: 1/100, minimal threshold
-        min_confidence=0.1,    # Demo: minimal confidence for broad coverage
-        min_lift=0.5,          # Demo: very low to include negative correlations
-        max_rule_length=2,     # Demo: short rules for broad firing coverage
-        top_k=100             # Demo: many rules to cover all candidates
+        min_support=0.01,
+        min_confidence=0.1,
+        min_lift=0.5,
+        max_rule_length=2,
+        top_k=100
     )
     miner = FairnessFilteredRuleMiner(rule_config)
 
@@ -128,15 +126,12 @@ def get_model_features(resume: Resume, role: JobRole, extractor: ContentNeutralE
 def create_prediction_function(role: JobRole):
     """Create a prediction function for counterfactual analysis."""
     base_extractor, miner, base_posteriors = get_demo_model_components()
-    # Create role-specific extractor
     extractor = ContentNeutralExtractor(base_extractor.vocabulary, role)
 
-    # Get training data for role-specific posterior fitting
     resumes, _ = load_sample_data()
     train_resumes = [data["resume"] for data in resumes.values()]
-    train_labels = [True, True, False, True, False, False, False, True]  # Mock labels for demo
+    train_labels = [True, True, False, True, False, False, False, True]
 
-    # Use existing mined rules but fit role-specific posteriors
     rule_posteriors = fit_rule_posteriors(
         miner.rules,
         train_resumes,
@@ -161,16 +156,14 @@ def create_prediction_function(role: JobRole):
                 base_prob = 0.8
             elif scoring.overall_recommendation == "review":
                 base_prob = 0.5
-            else:  # reject
+            else:
                 base_prob = 0.2
 
-            # Add some noise based on uncertainty
             uncertainty_width = scoring.overall_uncertainty[1] - scoring.overall_uncertainty[0]
             noise = np.random.normal(0, uncertainty_width * 0.1)
 
             return max(0.0, min(1.0, base_prob + noise))
         except Exception:
-            # Fallback for demo
             return 0.5
 
     return predict_fn, extractor
@@ -195,39 +188,30 @@ def _ledger_is_valid(path: Path) -> bool:
 @st.cache_data
 def populate_demo_ledger():
     """Populate audit ledger with real decisions for demo (if empty)."""
-    # Check if ledger is valid and has sufficient data
     if not _ledger_is_valid(Path(LEDGER_FILE)):
         if os.path.exists(LEDGER_FILE):
             print("audit_ledger.jsonl invalid; rebuilding", file=sys.stderr)
             os.unlink(LEDGER_FILE)
     else:
-        # Valid ledger exists, check if it has enough decisions
         try:
             decisions = read_all_decisions()
             if len(decisions) >= 16:
-                return  # Valid and sufficient, leave alone
+                return
         except Exception:
-            # Reading failed even though validation passed, rebuild
             os.unlink(LEDGER_FILE)
 
-    # Load sample data
     resumes, roles = load_sample_data()
     base_extractor, rule_miner, base_posteriors = get_demo_model_components()
 
-    # Get training data for posterior fitting
     train_resumes = [data["resume"] for data in resumes.values()]
-    train_labels = [True, True, False, True, False, False, False, True]  # Mock labels for demo
-
-    # Generate decisions for each resume x role combination
+    train_labels = [True, True, False, True, False, False, False, True]
     for resume_id, resume_data in resumes.items():
         for role_id, role_data in roles.items():
             resume = resume_data["resume"]
             role = role_data["role"]
 
-            # Create extractor for this role
             extractor = ContentNeutralExtractor(base_extractor.vocabulary, role)
 
-            # Fit rule posteriors for this role
             rule_posteriors = fit_rule_posteriors(
                 rule_miner.rules,
                 train_resumes,
@@ -236,7 +220,6 @@ def populate_demo_ledger():
                 n_folds=3
             )
 
-            # Score candidate
             scoring = score_candidate(
                 resume=resume,
                 role=role,
@@ -245,54 +228,42 @@ def populate_demo_ledger():
                 extractor=extractor
             )
 
-            # Log to ledger
             log_decision(scoring)
 
 
 def get_real_audit_decisions():
     """Get audit decisions from real ledger, formatted for demo UI."""
-    # Ensure ledger is populated
     populate_demo_ledger()
 
-    # Load sample data for names mapping
     resumes, roles = load_sample_data()
 
-    # Read all ledger entries
     ledger_entries = read_all_decisions()
 
-    # Convert to format expected by demo UI
     decisions = []
 
     for i, entry in enumerate(ledger_entries):
         scoring_payload = entry.get('full_scoring_payload', {})
 
-        # Get name from sample data (cycle through sample names)
         sample_names = ["Alex Chen", "Marcus Johnson", "Sarah Rodriguez", "Emily Davis",
                        "James Wilson", "Maria Garcia", "David Lee", "Jennifer Taylor"]
         candidate_name = sample_names[i % len(sample_names)]
 
-        # Get role title (cycle through available roles)
         role_titles = ["Senior Python Engineer", "Operations Analyst"]
         role = role_titles[i % len(role_titles)]
 
-        # Extract data from scoring payload
         recommendation = scoring_payload.get('overall_recommendation', 'review')
 
-        # Get top scoring skill/rule as a simple rule description
         aptitudes = scoring_payload.get('aptitudes', {})
-        top_rule = "rule_general: experience_match"  # Simple default
+        top_rule = "rule_general: experience_match"
         if aptitudes:
-            # Find skill with highest score
             top_skill = max(aptitudes.items(),
                           key=lambda x: x[1].get('score', 0) if isinstance(x[1], dict) and not np.isnan(x[1].get('score', 0)) else -1)[0]
             top_rule = f"rule_skill: {top_skill} experience"
 
-        # Simple fairness status (passed unless recommendation is advance)
         fairness_status = "warning" if recommendation == "advance" else "passed"
         bias_flagged = fairness_status == "warning"
 
-        # Extract overall score (use mean of aptitude scores, or 0.5 default)
-        score = 0.5  # default
+        score = 0.5
         if aptitudes:
             valid_scores = [x.get('score', 0) for x in aptitudes.values()
                            if isinstance(x, dict) and not np.isnan(x.get('score', 0))]

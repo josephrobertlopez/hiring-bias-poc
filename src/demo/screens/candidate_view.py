@@ -238,5 +238,3 @@ def render_candidate_view(resumes: Dict, roles: Dict):
         st.write(f"**Total Rules Evaluated:** {len(rule_miner.rules)}")
         st.write(f"**Skills Assessed:** {len(scoring.aptitudes)}")
 
-    # Banking compliance note
-    st.info("🏛️ **Banking Compliance Note:** This assessment uses deterministic Bayesian scoring with quantified uncertainty intervals, suitable for model risk management frameworks per SR 11-7.")
