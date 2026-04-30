@@ -152,34 +152,39 @@ def create_prediction_function(role: JobRole):
     return predict_fn, extractor
 
 
+def _ledger_is_valid(path: Path) -> bool:
+    if not path.exists():
+        return False
+    try:
+        with path.open() as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                ts = entry.get('timestamp', '')
+                datetime.fromisoformat(ts.rstrip('Z'))  # raises if bad
+        return True
+    except (ValueError, KeyError, json.JSONDecodeError):
+        return False
+
+
 @st.cache_data
 def populate_demo_ledger():
     """Populate audit ledger with real decisions for demo (if empty)."""
-    # Check if ledger already has data
-    if os.path.exists(LEDGER_FILE):
+    # Check if ledger is valid and has sufficient data
+    if not _ledger_is_valid(Path(LEDGER_FILE)):
+        if os.path.exists(LEDGER_FILE):
+            print("audit_ledger.jsonl invalid; rebuilding", file=sys.stderr)
+            os.unlink(LEDGER_FILE)
+    else:
+        # Valid ledger exists, check if it has enough decisions
         try:
             decisions = read_all_decisions()
             if len(decisions) >= 16:
-                # Validate all timestamps - if any are invalid, rebuild
-                invalid_count = 0
-                for decision in decisions:
-                    try:
-                        datetime.fromisoformat(decision.get('timestamp', '').rstrip('Z'))
-                    except (ValueError, TypeError):
-                        invalid_count += 1
-
-                if invalid_count > 0:
-                    print(f"audit_ledger.jsonl contained {len(decisions)} entries with {invalid_count} invalid timestamps (pre-076323b artifact); rebuilding", file=sys.stderr)
-                    # Truncate the file for rebuild
-                    with open(LEDGER_FILE, 'w') as f:
-                        pass  # Truncate file
-                else:
-                    return  # All timestamps valid, leave alone
-            # If < 16 decisions or invalid timestamps found, continue to rebuild
+                return  # Valid and sufficient, leave alone
         except Exception:
-            # If reading fails entirely, rebuild
-            with open(LEDGER_FILE, 'w') as f:
-                pass  # Truncate file
+            # Reading failed even though validation passed, rebuild
+            os.unlink(LEDGER_FILE)
 
     # Load sample data
     resumes, roles = load_sample_data()
