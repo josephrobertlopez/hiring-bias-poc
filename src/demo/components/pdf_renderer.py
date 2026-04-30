@@ -60,6 +60,9 @@ def process_reviewer_action(decision_id: str, action: str, comment: str):
 
 def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     """Generate comprehensive audit report PDF."""
+    # Load benchmark.json for real metric values
+    bench = json.load(open('benchmark.json'))
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -148,18 +151,19 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     t0 = perf_counter()
     story.append(Paragraph("<b>SECTION 2: FAIRNESS AUDIT (NYC LL144)</b>", styles['Heading2']))
 
+    # Extract real metric values from benchmark.json
+    gender_di = bench['fairness_metrics']['gender']['disparate_impact']['value']
+    race_di = bench['fairness_metrics']['race']['disparate_impact']['value']
+    gender_di_status = "PASS" if bench['fairness_metrics']['gender']['disparate_impact']['passed'] else "❌ FAIL"
+    race_di_status = "PASS" if bench['fairness_metrics']['race']['disparate_impact']['passed'] else "❌ FAIL"
+
     fairness_content = [
         "<b>Disparate Impact Analysis:</b>",
-        "• Gender: 0.893 (4/5 rule: PASS)",
-        "• Race: 0.834 (4/5 rule: PASS)",
-        "• Age: 0.912 (4/5 rule: PASS)",
+        f"• Gender: {gender_di:.3f} (4/5 rule: {gender_di_status})",
+        f"• Race: {race_di:.3f} (4/5 rule: {race_di_status})",
         "",
         "<b>Intersectional Analysis:</b>",
-        f"• Analyzed {len(selected_decisions)} decisions across demographic combinations",
-        "• Female × Asian: 0.867 (derived from base-attribute pairs)",
-        "• Male × Black: 0.798 (derived from base-attribute pairs)",
-        "• Female × Hispanic: 0.834 (derived from base-attribute pairs)",
-        f"• Real intersectional rates computed from ledger decisions",
+        "• Intersectional analysis: not computed in PoC v1 (planned for production validation phase)",
         "",
         "<b>Statistical Significance:</b>",
         f"• Bootstrap 95% CI computed over {len(selected_decisions)} decisions",
@@ -171,12 +175,27 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     for item in fairness_content:
         story.append(Paragraph(item, styles['Normal']))
 
-    # Fairness metrics table
+    # Fairness metrics table with real benchmark.json values
+    gender_eo = bench['fairness_metrics']['gender']['equalized_odds_gap']['value']
+    race_eo = bench['fairness_metrics']['race']['equalized_odds_gap']['value']
+    gender_ece = bench['fairness_metrics']['gender']['calibration_ece']['value']
+    race_ece = bench['fairness_metrics']['race']['calibration_ece']['value']
+
+    # Status based on actual passed/failed values from benchmark
+    gender_eo_status = "PASS" if bench['fairness_metrics']['gender']['equalized_odds_gap']['passed'] else "❌ FAIL"
+    race_eo_status = "PASS" if bench['fairness_metrics']['race']['equalized_odds_gap']['passed'] else "❌ FAIL"
+    gender_ece_status = "PASS" if bench['fairness_metrics']['gender']['calibration_ece']['passed'] else "❌ FAIL"
+    race_ece_status = "PASS" if bench['fairness_metrics']['race']['calibration_ece']['passed'] else "❌ FAIL"
+    di_status = "PASS" if (bench['fairness_metrics']['gender']['disparate_impact']['passed'] and
+                          bench['fairness_metrics']['race']['disparate_impact']['passed']) else "❌ FAIL"
+
     fairness_table_data = [
-        ['Metric', 'Gender', 'Race', 'Age', 'Threshold', 'Status'],
-        ['Disparate Impact', '0.893', '0.834', '0.912', '0.800', 'PASS'],
-        ['Equalized Odds Gap', '0.045', '0.067', '0.032', '0.100', 'PASS'],
-        ['Calibration ECE', '0.023', '0.034', '0.019', '0.050', 'PASS']
+        ['Metric', 'Gender', 'Race', 'Threshold', 'Status'],
+        ['Disparate Impact', f'{gender_di:.3f}', f'{race_di:.3f}', '0.800', di_status],
+        ['Equalized Odds Gap', f'{gender_eo:.3f}', f'{race_eo:.3f}', '0.100',
+         "PASS" if gender_eo_status == "PASS" and race_eo_status == "PASS" else "❌ FAIL"],
+        ['Calibration ECE', f'{gender_ece:.3f}', f'{race_ece:.3f}', '0.050',
+         "PASS" if gender_ece_status == "PASS" and race_ece_status == "PASS" else "❌ FAIL"]
     ]
 
     fairness_table = Table(fairness_table_data)
