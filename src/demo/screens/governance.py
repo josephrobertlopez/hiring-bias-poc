@@ -16,14 +16,10 @@ def render_governance_dashboard():
     st.title("Model Risk Management Dashboard")
     st.write("Real-time monitoring of hiring decisions with bias detection and reviewer workflow.")
 
-    # Initialize session state for decisions
     if "audit_decisions" not in st.session_state:
         st.session_state.audit_decisions = get_real_audit_decisions()
 
-    # Dashboard metrics
     st.subheader("📊 Decision Metrics")
-
-    # Calculate metrics from session state decisions
     decisions = st.session_state.audit_decisions
     flagged_decisions = [d for d in st.session_state.audit_decisions if d["bias_flagged"]]
     total_decisions = len(st.session_state.audit_decisions)
@@ -48,26 +44,21 @@ def render_governance_dashboard():
         pending_reviews = sum(1 for d in flagged_decisions if not d.get("reviewer_action"))
         st.metric("Pending Reviews", pending_reviews)
 
-    # Two-column layout
     col1, col2 = st.columns([2, 1])
 
     with col1:
         st.subheader("📋 Recent Decisions")
 
-        # Display recent decisions
-        recent_decisions = st.session_state.audit_decisions[-10:]  # Last 10 decisions
+        recent_decisions = st.session_state.audit_decisions[-10:]
 
         for decision in reversed(recent_decisions):
             with st.container():
-                # Status indicator
                 if decision["fairness_status"] == "passed":
                     status_color = "🟢"
                 elif decision["fairness_status"] == "warning":
                     status_color = "🟡"
                 else:
                     status_color = "🔴"
-
-                # Decision summary
                 col_a, col_b, col_c = st.columns([3, 2, 2])
 
                 with col_a:
@@ -84,7 +75,6 @@ def render_governance_dashboard():
                     timestamp = decision['timestamp'][:19] if len(decision['timestamp']) > 19 else decision['timestamp']
                     st.caption(f"Time: {timestamp}")
 
-                # Reviewer actions for flagged decisions
                 if decision["bias_flagged"] and not decision.get("reviewer_action"):
                     with st.expander(f"🔍 Review Decision {decision['decision_id']}"):
                         st.write("**Bias Detection Alert:** This decision was flagged by fairness gates.")
@@ -92,7 +82,6 @@ def render_governance_dashboard():
                         if decision.get("gate_fired"):
                             st.warning(f"⚠️ **Gate Fired:** {decision['gate_fired']}")
 
-                        # Reviewer action form
                         action = st.radio(
                             "Reviewer Action:",
                             ["approve", "reject", "escalate"],
@@ -107,10 +96,7 @@ def render_governance_dashboard():
 
                         if st.button(f"Submit Review", key=f"submit_{decision['decision_id']}"):
                             if comment.strip():
-                                # Process the reviewer action
                                 review_result = process_reviewer_action(decision['decision_id'], action, comment)
-
-                                # Update the decision in session state
                                 for i, d in enumerate(st.session_state.audit_decisions):
                                     if d['decision_id'] == decision['decision_id']:
                                         st.session_state.audit_decisions[i].update({

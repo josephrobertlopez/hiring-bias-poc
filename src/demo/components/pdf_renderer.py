@@ -97,12 +97,11 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
         canvas.drawString(
             72,
             30,
-            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Banking MRM Compliant | Page {doc.page}"
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Page {doc.page}"
         )
         canvas.restoreState()
 
     t0 = perf_counter()
-    # Get decisions based on scope
     decisions = get_real_audit_decisions()
     elapsed = perf_counter() - t0
     log_progress(f"Loading decisions from ledger... {elapsed:.2f}s ({len(decisions)} decisions)")
@@ -120,7 +119,6 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     else:  # All
         selected_decisions = decisions
 
-    # Section 1: Model Card (SR 11-7 compliant)
     t0 = perf_counter()
     story.append(Paragraph("HIRING BIAS POC - AUDIT REPORT", title_style))
     story.append(Spacer(1, 12))
