@@ -1,8 +1,4 @@
-"""Decision ledger for audit trail.
-
-Banking MRM compliance: deterministic decision IDs, full scoring payload,
-audit query support with JSONL persistence.
-"""
+"""Decision ledger for audit trail."""
 
 import json
 import os
@@ -18,14 +14,7 @@ LEDGER_FILE = "audit_ledger.jsonl"
 
 
 def log_decision(scoring: CandidateScoring, fairness_metrics: Optional[Dict[str, Any]] = None) -> None:
-    """Append decision to audit ledger.
-
-    For banking compliance: immutable audit trail with full decision context.
-
-    Args:
-        scoring: Complete candidate scoring result
-        fairness_metrics: Optional fairness metrics at decision time
-    """
+    """Append decision to audit ledger."""
     # Prepare ledger entry
     entry = {
         "decision_id": scoring.decision_id,
@@ -41,14 +30,7 @@ def log_decision(scoring: CandidateScoring, fairness_metrics: Optional[Dict[str,
 
 
 def read_decisions(decision_ids: List[str]) -> List[CandidateScoring]:
-    """Read specific decisions from audit ledger.
-
-    Args:
-        decision_ids: List of decision IDs to retrieve
-
-    Returns:
-        List of CandidateScoring objects for found decisions
-    """
+    """Read specific decisions from audit ledger."""
     if not os.path.exists(LEDGER_FILE):
         return []
 
@@ -74,11 +56,7 @@ def read_decisions(decision_ids: List[str]) -> List[CandidateScoring]:
 
 
 def read_all_decisions() -> List[Dict[str, Any]]:
-    """Read all ledger entries (for debugging/admin).
-
-    Returns:
-        List of raw ledger entries
-    """
+    """Read all ledger entries."""
     if not os.path.exists(LEDGER_FILE):
         return []
 

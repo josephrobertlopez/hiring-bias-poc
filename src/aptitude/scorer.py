@@ -1,14 +1,11 @@
-"""Per-skill aptitude scoring API.
-
-Public API locked - demo and collateral depend on this interface.
-Banking MRM compatible with deterministic scoring and quantified uncertainty.
-"""
+"""Per-skill aptitude scoring."""
 
 from typing import Dict, List, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 import json
+import subprocess
 import numpy as np
 from scipy.stats import beta
 
@@ -21,30 +18,30 @@ from ..features.rule_miner import AssociationRule
 @dataclass
 class SkillAptitude:
     """Per-skill aptitude score with uncertainty and explanation."""
-    skill: str                         # e.g. "python"
-    score: float                       # posterior mean, [0, 1]
-    uncertainty_interval: Tuple[float, float]   # 95% credible interval
-    contributing_rules: List['RuleFiring']      # explanation
-    fairness_filter_passed: bool       # did the contributing rules clear the proxy filter
+    skill: str
+    score: float
+    uncertainty_interval: Tuple[float, float]
+    contributing_rules: List['RuleFiring']
+    fairness_filter_passed: bool
 
 
 @dataclass
 class RuleFiring:
     """Rule contribution to skill aptitude score."""
     rule_id: str
-    antecedent: str                    # human-readable
+    antecedent: str
     posterior_mean_reliability: float
     posterior_interval: Tuple[float, float]
-    contribution_to_skill: float       # signed contribution
+    contribution_to_skill: float
 
 
 @dataclass
 class CandidateScoring:
     """Complete candidate evaluation with per-skill breakdown."""
-    aptitudes: Dict[str, SkillAptitude]  # per-skill
-    overall_recommendation: str          # "advance" | "review" | "do_not_advance"
+    aptitudes: Dict[str, SkillAptitude]
+    overall_recommendation: str
     overall_uncertainty: Tuple[float, float]
-    decision_id: str                     # for audit ledger
+    decision_id: str
     model_version: str
     timestamp: str
 
@@ -56,25 +53,14 @@ def score_candidate(
     rule_posteriors: Dict[str, RulePosterior] = None,
     extractor = None
 ) -> CandidateScoring:
-    """Score candidate with per-skill aptitude breakdown.
-
-    Banking MRM compatible: deterministic scoring with quantified uncertainty
-    and full explanation decomposition.
-
-    Args:
-        resume: Candidate resume data
-        role: Job role requirements
-        rules: Association rules (optional, for testing)
-        rule_posteriors: Fitted rule posteriors (optional, for testing)
-        extractor: Feature extractor (optional, for testing)
-
-    Returns:
-        CandidateScoring with per-skill aptitudes and overall recommendation
-    """
+    """Score candidate with per-skill aptitude breakdown."""
     # Generate deterministic decision ID
     resume_hash = _hash_resume(resume)
     role_id = _hash_role(role)
-    model_version = "1.0.0"  # TODO: version from git or config
+    try:
+        model_version = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd='/', stderr=subprocess.DEVNULL).decode().strip()
+    except:
+        model_version = "1.0.0"
     decision_id = hashlib.md5(f"{resume_hash}:{role_id}:{model_version}".encode()).hexdigest()[:16]
 
     # Early return with NaN scores if no rules/posteriors provided

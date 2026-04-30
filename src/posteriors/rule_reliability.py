@@ -1,8 +1,4 @@
-"""Beta posterior over rule reliability for banking MRM compliance.
-
-Fits Beta distributions on cross-validated rule performance data.
-Provides deterministic posterior means and credible intervals.
-"""
+"""Beta posterior over rule reliability."""
 
 from typing import Dict, List, Tuple
 from dataclasses import dataclass
@@ -18,8 +14,8 @@ from ..features.rule_miner import AssociationRule, FairnessFilteredRuleMiner
 class RulePosterior:
     """Beta posterior parameters for a single rule."""
     rule_id: str
-    alpha: float  # successes + 1
-    beta_param: float  # failures + 1 (renamed to avoid conflict with scipy.stats.beta)
+    alpha: float
+    beta_param: float
     n_observations: int
     passed_fairness_filter: bool
 
@@ -42,21 +38,7 @@ def fit_rule_posteriors(
     extractor,
     n_folds: int = 5
 ) -> Dict[str, RulePosterior]:
-    """Fit Beta posteriors over rule reliability using cross-validation.
-
-    For banking compliance: deterministic posterior estimates with quantified
-    uncertainty, no sampling at prediction time. Uses same CV pattern as rule miner.
-
-    Args:
-        rules: Association rules to fit posteriors for
-        train_resumes: Training resumes
-        train_labels: Training labels (True = advance/hire)
-        extractor: Feature extractor for rule evaluation
-        n_folds: CV folds for reliability estimation
-
-    Returns:
-        Dict mapping rule_id to RulePosterior
-    """
+    """Fit Beta posteriors over rule reliability using cross-validation."""
     if not rules:
         return {}
 
