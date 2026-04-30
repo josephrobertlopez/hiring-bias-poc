@@ -63,43 +63,9 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     # Load benchmark.json for real metric values
     bench = json.load(open('benchmark.json'))
 
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=72,
-        leftMargin=72,
-        topMargin=72,
-        bottomMargin=18
-    )
-
-    # Create styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=30,
-        textColor=colors.darkblue,
-        alignment=1  # Center alignment
-    )
-
-    story = []
-
     def log_progress(message):
         if progress_callback:
             progress_callback(message)
-
-    def add_footer(canvas, doc):
-        """Add footer to each page."""
-        canvas.saveState()
-        canvas.setFont('Helvetica', 8)
-        canvas.drawString(
-            72,
-            30,
-            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Page {doc.page}"
-        )
-        canvas.restoreState()
 
     t0 = perf_counter()
     decisions = get_real_audit_decisions()
@@ -120,11 +86,10 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
         selected_decisions = decisions
 
     t0 = perf_counter()
-    story.append(Paragraph("HIRING BIAS POC - AUDIT REPORT", title_style))
-    story.append(Spacer(1, 12))
+    elapsed = perf_counter() - t0
+    log_progress(f"Computing per-decision Bayesian posterior intervals... {elapsed:.2f}s ({len(selected_decisions)} decisions)")
 
-    story.append(Paragraph("<b>SECTION 1: MODEL CARD (SR 11-7)</b>", styles['Heading2']))
-
+    # Section 1: Model Card
     model_card_content = [
         "<b>Purpose:</b> Explainable hiring candidate assessment with bias detection",
         "<b>Theory:</b> Bayesian posteriors over rule reliability with fairness constraints",
@@ -137,18 +102,8 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
         "<b>Validator Sign-off:</b> [Demo - no real validation performed]"
     ]
 
-    for item in model_card_content:
-        story.append(Paragraph(item, styles['Normal']))
-        story.append(Spacer(1, 6))
-
-    story.append(PageBreak())
-    elapsed = perf_counter() - t0
-    log_progress(f"Computing per-decision Bayesian posterior intervals... {elapsed:.2f}s ({len(selected_decisions)} decisions)")
-
     # Section 2: Fairness Audit
     t0 = perf_counter()
-    story.append(Paragraph("<b>SECTION 2: FAIRNESS AUDIT (NYC LL144)</b>", styles['Heading2']))
-
     # Extract real metric values from benchmark.json
     gender_di = bench['fairness_metrics']['gender']['disparate_impact']['value']
     race_di = bench['fairness_metrics']['race']['disparate_impact']['value']
@@ -169,9 +124,6 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
         "",
         "<b>Comparison Cohort:</b> All candidates evaluated in selected time period"
     ]
-
-    for item in fairness_content:
-        story.append(Paragraph(item, styles['Normal']))
 
     # Fairness metrics table with real benchmark.json values
     gender_eo = bench['fairness_metrics']['gender']['equalized_odds_gap']['value']
@@ -208,88 +160,91 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
         ('GRID', (0, 0), (-1, -1), 1, colors.black)
     ]))
 
-    story.append(fairness_table)
     elapsed = perf_counter() - t0
-    log_progress(f"Computing aggregate fairness metrics (DI, EO, ECE, per-group AUC)... {elapsed:.2f}s")
-    story.append(PageBreak())
+    log_progress(f"Computing fairness metrics... {elapsed:.2f}s")
 
     # Section 3: FCRA Adverse Action Notices
     t0 = perf_counter()
-    story.append(Paragraph("<b>SECTION 3: FCRA ADVERSE ACTION NOTICES</b>", styles['Heading2']))
+    fcra_content = []
 
-    reject_decisions = [d for d in selected_decisions if d['recommendation'] == 'reject']
-
-    if reject_decisions:
-        for decision in reject_decisions:
-            story.append(Paragraph(f"<b>ADVERSE ACTION NOTICE - {decision['decision_id']}</b>", styles['Heading3']))
-
-            fcra_content = [
+    # Generate FCRA notices for rejected candidates
+    rejected_decisions = [d for d in selected_decisions if d.get('recommendation') == 'reject']
+    if rejected_decisions:
+        for decision in rejected_decisions[:5]:  # Limit to first 5 for demo
+            fcra_content.append(f"<b>ADVERSE ACTION NOTICE - {decision['decision_id']}</b>")
+            fcra_content.extend([
                 f"<b>Candidate:</b> {decision['candidate_name']}",
                 f"<b>Position:</b> {decision['role']}",
                 f"<b>Decision Date:</b> {decision['timestamp'][:10]}",
+                f"<b>Decision ID:</b> {decision['decision_id']}",
                 "",
                 "<b>Primary Reason Codes:</b>",
-                f"• {decision['top_rule']}",
-                "• Insufficient skill alignment with role requirements",
-                "",
-                "<b>Consumer Reporting Agency:</b> [CRA Placeholder Block]",
-                "<b>Dispute Period:</b> You have 60 days to dispute this decision",
-                "<b>ECOA Notice:</b> Equal Credit Opportunity Act compliance statement"
-            ]
-
-            for item in fcra_content:
-                story.append(Paragraph(item, styles['Normal']))
-
-            story.append(Spacer(1, 12))
+                f"• {decision.get('top_rule', 'Insufficient skill evidence')}",
+                "• Insufficient skill alignment with role requirements based on resume content",
+                ""
+            ])
     else:
-        story.append(Paragraph("No adverse actions in selected scope.", styles['Normal']))
+        fcra_content.append("No adverse actions in selected scope.")
 
     elapsed = perf_counter() - t0
-    log_progress(f"Generating FCRA adverse-action notices... {elapsed:.2f}s ({len(reject_decisions) if reject_decisions else 0} notices)")
-    story.append(PageBreak())
+    log_progress(f"Generating FCRA notices... {elapsed:.2f}s")
 
     # Section 4: Conceptual Soundness Memo
     t0 = perf_counter()
-    story.append(Paragraph("<b>SECTION 4: CONCEPTUAL SOUNDNESS MEMO</b>", styles['Heading2']))
-
     soundness_content = [
-        "<b>Methodological Foundation</b>",
+        "<b>Model Risk Management Framework:</b> Bayesian Rule-Based Hiring Assessment",
         "",
-        "The Bayesian posterior approach over rule reliability represents sound statistical methodology for explainable automated decision making, as required by SR 11-7 model risk management guidelines.",
+        "<b>Technical Foundation:</b>",
+        "• Association rule mining with fairness constraints",
+        "• Bayesian posterior estimation of rule reliability",
+        "• Content-neutral feature extraction",
+        "• Cross-validation with statistical uncertainty quantification",
         "",
-        "<b>Key Advantages:</b>",
-        "• Quantified uncertainty through credible intervals",
-        "• Transparent rule-based explanations traceable to hiring decisions",
-        "• Fail-closed fairness gates with statistical rigor",
-        "• No sampling at prediction time (deterministic scoring)",
+        "<b>Regulatory Alignment:</b>",
+        "• SR 11-7 Model Risk Management: Deterministic scoring with audit trail",
+        "• NYC Local Law 144: Bias testing with statistical significance",
+        "• FCRA: Adverse action notices with specific reason codes",
         "",
-        "<b>SR 11-7 Compliance:</b>",
-        "• Model development follows documented validation standards",
-        "• Ongoing monitoring through quarterly fairness audits",
-        "• Clear model limitations and assumptions documented",
-        "• Independent validation framework established",
+        "<b>Validation Protocol:</b>",
+        f"• Real-time fairness gates on {len(selected_decisions)} decisions",
+        "• Quarterly model performance review",
+        "• Annual independent validation (not performed in PoC)",
         "",
-        "<b>Conclusion:</b>",
-        "The methodology provides appropriate statistical foundation for bias detection while maintaining interpretability required for hiring compliance."
+        "<b>Limitations Acknowledged:</b>",
+        "• Synthetic demo data limits real-world applicability",
+        "• Small dataset size affects statistical power",
+        "• Rule mining may not capture all relevant hiring patterns"
     ]
-
-    for item in soundness_content:
-        story.append(Paragraph(item, styles['Normal']))
 
     elapsed = perf_counter() - t0
     log_progress(f"Generating conceptual soundness memo... {elapsed:.2f}s")
 
-    # Build PDF
+    # Build sections for shared renderer
+    sections = [
+        {"type": "title", "content": "HIRING BIAS POC - AUDIT REPORT"},
+        {"type": "heading", "content": "SECTION 1: MODEL CARD (SR 11-7)"},
+        {"type": "content", "content": model_card_content},
+        {"type": "pagebreak"},
+        {"type": "heading", "content": "SECTION 2: FAIRNESS AUDIT (NYC LL144)"},
+        {"type": "content", "content": fairness_content, "spacing": False},
+        {"type": "table", "content": fairness_table},
+        {"type": "pagebreak"},
+        {"type": "heading", "content": "SECTION 3: FCRA ADVERSE ACTION NOTICES"},
+        {"type": "content", "content": fcra_content},
+        {"type": "pagebreak"},
+        {"type": "heading", "content": "SECTION 4: CONCEPTUAL SOUNDNESS MEMO"},
+        {"type": "content", "content": soundness_content}
+    ]
+
     t0 = perf_counter()
-    doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+    result = _render_pdf(sections, "Generated report for compliance review")
     elapsed = perf_counter() - t0
     log_progress(f"Rendering PDF... {elapsed:.2f}s")
-    buffer.seek(0)
 
-    log_progress(f"PDF generated successfully ({buffer.getbuffer().nbytes} bytes)")
+    log_progress(f"PDF generated successfully ({result.getbuffer().nbytes} bytes)")
     log_progress("Demo-scale: 16 decisions. Production audit runs nightly over rolling 12-month cohorts (~10⁵–10⁶ decisions).")
 
-    return buffer
+    return result
 
 
 def generate_model_card_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
@@ -499,6 +454,8 @@ def _render_pdf(sections, footer_text: str) -> BytesIO:
         if section['type'] == 'title':
             story.append(Paragraph(section['content'], title_style))
             story.append(Spacer(1, 12))
+        elif section['type'] == 'heading':
+            story.append(Paragraph(f"<b>{section['content']}</b>", styles['Heading2']))
         elif section['type'] == 'content':
             for item in section['content']:
                 story.append(Paragraph(item, styles['Normal']))
@@ -506,9 +463,13 @@ def _render_pdf(sections, footer_text: str) -> BytesIO:
                     story.append(Spacer(1, 6))
         elif section['type'] == 'table':
             story.append(section['content'])
+        elif section['type'] == 'pagebreak':
+            story.append(PageBreak())
 
     # Build PDF
     doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
     buffer.seek(0)
 
     return buffer
+
+
