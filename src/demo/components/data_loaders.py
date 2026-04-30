@@ -84,11 +84,36 @@ def get_demo_model_components():
     )
 
     # Create sample training data for rule mining
-    resumes, _ = load_sample_data()
+    resumes, roles = load_sample_data()
     train_resumes = [data["resume"] for data in resumes.values()]
     train_labels = [True, True, False, True, False, False, False, True]  # Mock labels for demo
 
-    return vocab, train_resumes, train_labels
+    # Create extractor using first role as sample
+    sample_role = list(roles.values())[0]["role"]
+    extractor = ContentNeutralExtractor(vocab, sample_role)
+
+    # Create and configure rule miner
+    rule_config = RuleMinerConfig(
+        min_support=0.1,
+        min_confidence=0.6,
+        min_lift=1.1,
+        top_k=20
+    )
+    miner = FairnessFilteredRuleMiner(rule_config)
+
+    # Mine rules
+    miner.mine_rules(train_resumes, train_labels, extractor)
+
+    # Fit rule posteriors
+    posteriors = fit_rule_posteriors(
+        miner.rules,
+        train_resumes,
+        train_labels,
+        extractor,
+        n_folds=3
+    )
+
+    return extractor, miner, posteriors
 
 
 def get_model_features(resume: Resume, role: JobRole, extractor: ContentNeutralExtractor) -> Dict[str, Any]:
@@ -99,22 +124,18 @@ def get_model_features(resume: Resume, role: JobRole, extractor: ContentNeutralE
 
 def create_prediction_function(role: JobRole):
     """Create a prediction function for counterfactual analysis."""
-    vocab, train_resumes, train_labels = get_demo_model_components()
-    extractor = ContentNeutralExtractor(vocab, role)
+    base_extractor, miner, base_posteriors = get_demo_model_components()
+    # Create role-specific extractor
+    extractor = ContentNeutralExtractor(base_extractor.vocabulary, role)
 
-    # Train a simple rule miner for demo
-    rule_config = RuleMinerConfig(
-        min_support=0.1,
-        min_confidence=0.6,
-        min_lift=1.1,
-        top_k=20
-    )
-    rule_miner = FairnessFilteredRuleMiner(rule_config)
-    rule_miner.mine_rules(train_resumes, train_labels, extractor)
+    # Get training data for role-specific posterior fitting
+    resumes, _ = load_sample_data()
+    train_resumes = [data["resume"] for data in resumes.values()]
+    train_labels = [True, True, False, True, False, False, False, True]  # Mock labels for demo
 
-    # Fit rule posteriors
+    # Use existing mined rules but fit role-specific posteriors
     rule_posteriors = fit_rule_posteriors(
-        rule_miner.rules,
+        miner.rules,
         train_resumes,
         train_labels,
         extractor,
@@ -127,7 +148,7 @@ def create_prediction_function(role: JobRole):
             scoring = score_candidate(
                 resume=resume,
                 role=role,
-                rules=rule_miner.rules,
+                rules=miner.rules,
                 rule_posteriors=rule_posteriors,
                 extractor=extractor
             )
@@ -188,19 +209,11 @@ def populate_demo_ledger():
 
     # Load sample data
     resumes, roles = load_sample_data()
-    vocab, train_resumes, train_labels = get_demo_model_components()
+    base_extractor, rule_miner, base_posteriors = get_demo_model_components()
 
-    # Create rule mining components once
-    rule_config = RuleMinerConfig(
-        min_support=0.1,
-        min_confidence=0.6,
-        min_lift=1.1,
-        top_k=20
-    )
-    rule_miner = FairnessFilteredRuleMiner(rule_config)
-    # Use first role as a placeholder for rule mining (rules are role-agnostic in this implementation)
-    sample_role = list(roles.values())[0]["role"]
-    rule_miner.mine_rules(train_resumes, train_labels, ContentNeutralExtractor(vocab, sample_role))
+    # Get training data for posterior fitting
+    train_resumes = [data["resume"] for data in resumes.values()]
+    train_labels = [True, True, False, True, False, False, False, True]  # Mock labels for demo
 
     # Generate decisions for each resume x role combination
     for resume_id, resume_data in resumes.items():
@@ -209,7 +222,7 @@ def populate_demo_ledger():
             role = role_data["role"]
 
             # Create extractor for this role
-            extractor = ContentNeutralExtractor(vocab, role)
+            extractor = ContentNeutralExtractor(base_extractor.vocabulary, role)
 
             # Fit rule posteriors for this role
             rule_posteriors = fit_rule_posteriors(

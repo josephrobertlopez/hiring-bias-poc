@@ -56,10 +56,10 @@ def test_model_components():
     """Test model component initialization."""
     print("Testing model components...")
 
-    vocab, train_resumes, train_labels = get_demo_model_components()
-    assert len(vocab.tokens) > 0, "Vocabulary is empty"
-    assert len(train_resumes) == 8, f"Expected 8 training resumes, got {len(train_resumes)}"
-    assert len(train_labels) == 8, f"Expected 8 training labels, got {len(train_labels)}"
+    extractor, miner, posteriors = get_demo_model_components()
+    assert len(extractor.vocabulary.tokens) > 0, "Vocabulary is empty"
+    assert hasattr(miner, 'rules'), "Miner should have rules attribute"
+    assert len(posteriors) > 0, f"Expected posteriors, got {len(posteriors)}"
 
     print("✅ Model components test passed")
 
@@ -70,7 +70,7 @@ def test_candidate_assessment():
 
     # Load data
     resumes, roles = load_sample_data()
-    vocab, train_resumes, train_labels = get_demo_model_components()
+    base_extractor, miner, posteriors = get_demo_model_components()
 
     # Get test candidate and role
     first_resume_id = list(resumes.keys())[0]
@@ -79,19 +79,15 @@ def test_candidate_assessment():
     role = roles[first_role_id]['role']
 
     # Set up pipeline
-    extractor = ContentNeutralExtractor(vocab, role)
+    extractor = ContentNeutralExtractor(base_extractor.vocabulary, role)
 
-    rule_config = RuleMinerConfig(
-        min_support=0.1,
-        min_confidence=0.6,
-        min_lift=1.1,
-        top_k=20
-    )
-    rule_miner = FairnessFilteredRuleMiner(rule_config)
-    rule_miner.mine_rules(train_resumes, train_labels, extractor)
+    # Get training data for role-specific posterior fitting
+    train_resumes = [data["resume"] for data in resumes.values()]
+    train_labels = [True, True, False, True, False, False, False, True]  # Mock labels for demo
 
+    # Use shared miner but fit role-specific posteriors
     rule_posteriors = fit_rule_posteriors(
-        rule_miner.rules,
+        miner.rules,
         train_resumes,
         train_labels,
         extractor,
@@ -102,7 +98,7 @@ def test_candidate_assessment():
     scoring = score_candidate(
         resume=resume,
         role=role,
-        rules=rule_miner.rules,
+        rules=miner.rules,
         rule_posteriors=rule_posteriors,
         extractor=extractor
     )
@@ -222,19 +218,20 @@ def test_end_to_end_workflow():
     resume = resumes[first_resume_id]['resume']
     role = roles[first_role_id]['role']
 
-    vocab, train_resumes, train_labels = get_demo_model_components()
-    extractor = ContentNeutralExtractor(vocab, role)
+    base_extractor, miner, posteriors = get_demo_model_components()
+    extractor = ContentNeutralExtractor(base_extractor.vocabulary, role)
 
-    rule_config = RuleMinerConfig(min_support=0.1, min_confidence=0.6, min_lift=1.1, top_k=10)
-    rule_miner = FairnessFilteredRuleMiner(rule_config)
-    rule_miner.mine_rules(train_resumes, train_labels, extractor)
+    # Get training data for role-specific posterior fitting
+    train_resumes = [data["resume"] for data in resumes.values()]
+    train_labels = [True, True, False, True, False, False, False, True]  # Mock labels for demo
 
-    rule_posteriors = fit_rule_posteriors(rule_miner.rules, train_resumes, train_labels, extractor, n_folds=3)
+    # Use shared miner but fit role-specific posteriors
+    rule_posteriors = fit_rule_posteriors(miner.rules, train_resumes, train_labels, extractor, n_folds=3)
 
     scoring = score_candidate(
         resume=resume,
         role=role,
-        rules=rule_miner.rules,
+        rules=miner.rules,
         rule_posteriors=rule_posteriors,
         extractor=extractor
     )

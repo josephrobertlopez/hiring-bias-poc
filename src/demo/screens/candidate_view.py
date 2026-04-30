@@ -74,8 +74,8 @@ def render_candidate_view(resumes: Dict, roles: Dict):
     st.markdown("---")
 
     # Get model components
-    vocab, train_resumes, train_labels = get_demo_model_components()
-    extractor = ContentNeutralExtractor(vocab, role)
+    base_extractor, miner, posteriors = get_demo_model_components()
+    extractor = ContentNeutralExtractor(base_extractor.vocabulary, role)
 
     # Show extracted features
     with st.expander("🔍 Model Features (What the algorithm sees)"):
@@ -102,19 +102,15 @@ def render_candidate_view(resumes: Dict, roles: Dict):
 
     # Train rule miner and get scoring
     with st.spinner("Computing aptitude scores..."):
-        rule_config = RuleMinerConfig(
-            min_support=0.1,
-            min_confidence=0.6,
-            min_lift=1.1,
-            top_k=20
-        )
+        # Get training data for role-specific posterior fitting
+        from ..components.data_loaders import load_sample_data
+        sample_resumes, _ = load_sample_data()
+        train_resumes = [data["resume"] for data in sample_resumes.values()]
+        train_labels = [True, True, False, True, False, False, False, True]  # Mock labels for demo
 
-        rule_miner = FairnessFilteredRuleMiner(rule_config)
-        rule_miner.mine_rules(train_resumes, train_labels, extractor)
-
-        # Fit rule posteriors
+        # Use shared miner but fit role-specific posteriors
         rule_posteriors = fit_rule_posteriors(
-            rule_miner.rules,
+            miner.rules,
             train_resumes,
             train_labels,
             extractor,
@@ -125,7 +121,7 @@ def render_candidate_view(resumes: Dict, roles: Dict):
         scoring = score_candidate(
             resume=resume,
             role=role,
-            rules=rule_miner.rules,
+            rules=miner.rules,
             rule_posteriors=rule_posteriors,
             extractor=extractor
         )
