@@ -93,11 +93,13 @@ def get_demo_model_components():
     extractor = ContentNeutralExtractor(vocab, sample_role)
 
     # Create and configure rule miner
+    # Demo thresholds: lowered for small dataset (8 samples) to increase rule diversity
+    # Production would use higher thresholds tuned on real hiring data
     rule_config = RuleMinerConfig(
-        min_support=0.1,
-        min_confidence=0.6,
-        min_lift=1.1,
-        top_k=20
+        min_support=0.02,    # Demo: very low for 8 samples (1/50)
+        min_confidence=0.2,  # Demo: very low to allow diverse rules
+        min_lift=0.8,        # Demo: below 1.0 to include more patterns
+        top_k=50             # Demo: more rules for small dataset
     )
     miner = FairnessFilteredRuleMiner(rule_config)
 

@@ -128,34 +128,30 @@ class FairnessFilteredRuleMiner:
         for resume, hired in zip(resumes, labels):
             transaction = set()
 
-            # Add skill tokens (prefix to distinguish from other features)
+            # Add skill tokens directly (no prefix needed - these are what score_candidate matches)
             for skill in resume.skill_tokens:
                 if not self._is_protected_attribute(skill):
-                    transaction.add(f"skill_{skill}")
+                    transaction.add(skill)
 
             # Add binned experience
             features = extractor.extract_features(resume)
             experience_bin = features.get('experience_bin', 'unknown')
-            transaction.add(f"exp_{experience_bin}")
+            if experience_bin != 'unknown':
+                transaction.add(f"experience_{experience_bin}")
 
-            # Add education level
-            edu_level = features.get('education_level', 'unknown')
-            transaction.add(f"edu_{edu_level}")
-
-            # Add seniority level
+            # Add seniority level (job-relevant, not protected)
             seniority = features.get('seniority_level', 'unknown')
-            transaction.add(f"seniority_{seniority}")
+            if seniority != 'unknown':
+                transaction.add(f"seniority_{seniority}")
 
-            # Add domain background
-            for domain in resume.domain_background:
-                if not self._is_protected_attribute(domain):
-                    transaction.add(f"domain_{domain}")
+            # Exclude education_level and domain_background - these are protected proxies
+            # that the fairness filter is designed to remove
 
-            # Add hiring outcome
+            # Add hiring outcome as consequent
             if hired:
-                transaction.add("outcome_hired")
+                transaction.add("advance")
             else:
-                transaction.add("outcome_not_hired")
+                transaction.add("do_not_advance")
 
             transactions.append(transaction)
 
