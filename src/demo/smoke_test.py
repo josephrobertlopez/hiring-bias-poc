@@ -34,8 +34,6 @@ from src.fairness.counterfactual import CounterfactualAnalyzer
 
 def test_data_loading():
     """Test sample data loading."""
-    print("Testing data loading...")
-
     resumes, roles = load_sample_data()
     assert len(resumes) == 8, f"Expected 8 resumes, got {len(resumes)}"
     assert len(roles) == 2, f"Expected 2 roles, got {len(roles)}"
@@ -48,26 +46,20 @@ def test_data_loading():
     assert 'resume' in resumes[first_resume_id], "Resume missing resume object"
     assert 'title' in roles[first_role_id], "Role missing title field"
     assert 'role' in roles[first_role_id], "Role missing role object"
-
-    print("✅ Data loading test passed")
+    print("✅ Data loading passed")
 
 
 def test_model_components():
     """Test model component initialization."""
-    print("Testing model components...")
-
     extractor, miner, posteriors = get_demo_model_components()
     assert len(extractor.vocabulary.tokens) > 0, "Vocabulary is empty"
     assert hasattr(miner, 'rules'), "Miner should have rules attribute"
     assert len(posteriors) > 0, f"Expected posteriors, got {len(posteriors)}"
-
-    print("✅ Model components test passed")
+    print("✅ Model components passed")
 
 
 def test_candidate_assessment():
     """Test candidate assessment (Screen 1: Candidate View)."""
-    print("Testing candidate assessment...")
-
     # Load data
     resumes, roles = load_sample_data()
     base_extractor, miner, posteriors = get_demo_model_components()
@@ -108,14 +100,11 @@ def test_candidate_assessment():
     assert hasattr(scoring, 'aptitudes'), "Scoring missing aptitudes"
     assert scoring.overall_recommendation in ['advance', 'review', 'do_not_advance'], \
         f"Invalid recommendation: {scoring.overall_recommendation}"
-
-    print("✅ Candidate assessment test passed")
+    print("✅ Candidate assessment passed")
 
 
 def test_counterfactual_analysis():
     """Test counterfactual analysis (Screen 2: Counterfactual Matrix)."""
-    print("Testing counterfactual analysis...")
-
     # Load data
     resumes, roles = load_sample_data()
 
@@ -150,14 +139,11 @@ def test_counterfactual_analysis():
         [resume], 'gender', predict_fn, top_k=5, feature_extractor=extractor
     )
     # Note: detailed may be empty if no swaps produce different feature vectors
-
-    print("✅ Counterfactual analysis test passed")
+    print("✅ Counterfactual analysis passed")
 
 
 def test_governance_dashboard():
     """Test governance dashboard (Screen 3: Governance Dashboard)."""
-    print("Testing governance dashboard...")
-
     # Test mock audit decisions
     decisions = get_real_audit_decisions()
     assert len(decisions) == 16, f"Expected 16 real decisions (8 resumes × 2 roles), got {len(decisions)}"
@@ -171,14 +157,11 @@ def test_governance_dashboard():
     result = process_reviewer_action('test_id', 'Reject', 'Bias detected in testing')
     assert result['reviewer_action'] == 'Reject', "Reviewer action not processed correctly"
     assert result['reviewer_comment'] == 'Bias detected in testing', "Reviewer comment not stored"
-
-    print("✅ Governance dashboard test passed")
+    print("✅ Governance dashboard passed")
 
 
 def test_audit_report_generation():
     """Test audit report generation (Screen 4: Generate Report)."""
-    print("Testing audit report generation...")
-
     progress_messages = []
 
     def test_callback(message):
@@ -188,10 +171,7 @@ def test_audit_report_generation():
     scopes = ["Single Decision", "Last Week", "Last Month", "All Decisions"]
 
     for scope in scopes:
-        print(f"  Testing scope: {scope}")
-
         pdf_buffer = generate_audit_pdf(scope, test_callback)
-
         assert pdf_buffer.getvalue(), f"Empty PDF generated for scope: {scope}"
         assert len(pdf_buffer.getvalue()) > 1000, f"PDF too small for scope: {scope}"
 
@@ -199,14 +179,11 @@ def test_audit_report_generation():
     assert len(progress_messages) > 0, "No progress messages logged"
     assert any("Loading decisions" in msg for msg in progress_messages), "Missing loading progress"
     assert any("PDF generated successfully" in msg for msg in progress_messages), "Missing completion progress"
-
-    print("✅ Audit report generation test passed")
+    print("✅ Audit report generation passed")
 
 
 def test_end_to_end_workflow():
     """Test complete end-to-end workflow."""
-    print("Testing end-to-end workflow...")
-
     # This simulates a complete demo run
 
     # 1. Load data
@@ -247,14 +224,12 @@ def test_end_to_end_workflow():
 
     # 5. Generate audit report
     pdf_buffer = generate_audit_pdf("All Decisions")
-
-    print("✅ End-to-end workflow test passed")
+    print("✅ End-to-end workflow passed")
 
 
 def run_smoke_tests():
     """Run all smoke tests."""
-    print("🔥 Running demo smoke tests...")
-    print("="*50)
+    print("🔥 Demo smoke tests...")
 
     tests = [
         test_data_loading,
@@ -275,18 +250,14 @@ def run_smoke_tests():
             passed += 1
         except Exception as e:
             print(f"❌ {test.__name__} FAILED: {e}")
-            traceback.print_exc()
             failed += 1
-            print()
 
-    print("="*50)
-    print(f"Smoke test results: {passed} passed, {failed} failed")
-
+    print(f"Results: {passed} passed, {failed} failed")
     if failed == 0:
-        print("🎉 All smoke tests passed! Demo is ready.")
+        print("🎉 Demo ready")
         return True
     else:
-        print("💥 Some smoke tests failed. Fix issues before demo.")
+        print("💥 Fix issues before demo")
         return False
 
 

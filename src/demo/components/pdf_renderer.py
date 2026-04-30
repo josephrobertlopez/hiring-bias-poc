@@ -296,44 +296,6 @@ def generate_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
 
 def generate_model_card_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     """Generate SR 11-7 model card PDF only."""
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=72,
-        leftMargin=72,
-        topMargin=72,
-        bottomMargin=18
-    )
-
-    # Create styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=30,
-        textColor=colors.darkblue,
-        alignment=1  # Center alignment
-    )
-
-    story = []
-
-    def add_footer(canvas, doc):
-        """Add footer to each page."""
-        canvas.saveState()
-        canvas.setFont('Helvetica', 8)
-        canvas.drawString(
-            72,
-            30,
-            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Sample document generated from synthetic demo data. Not a production model card."
-        )
-        canvas.restoreState()
-
-    # Model Card Section Only
-    story.append(Paragraph("MODEL CARD (SR 11-7)", title_style))
-    story.append(Spacer(1, 12))
-
     model_card_content = [
         "<b>Purpose:</b> Explainable hiring candidate assessment with bias detection",
         "<b>Theory:</b> Bayesian posteriors over rule reliability with fairness constraints",
@@ -346,55 +308,18 @@ def generate_model_card_pdf(decisions_scope: str, progress_callback=None) -> Byt
         "<b>Validator Sign-off:</b> [Demo - no real validation performed]"
     ]
 
-    for item in model_card_content:
-        story.append(Paragraph(item, styles['Normal']))
-        story.append(Spacer(1, 6))
+    sections = [
+        {"type": "title", "content": "MODEL CARD (SR 11-7)"},
+        {"type": "content", "content": model_card_content}
+    ]
 
-    # Build PDF
-    doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
-    buffer.seek(0)
-
-    return buffer
+    return _render_pdf(sections, "Sample document generated from synthetic demo data. Not a production model card.")
 
 
 def generate_fairness_audit_pdf(decisions_scope: str, progress_callback=None) -> BytesIO:
     """Generate NYC LL144 fairness audit PDF only."""
     # Load benchmark.json for real metric values
     bench = json.load(open('benchmark.json'))
-
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=72,
-        leftMargin=72,
-        topMargin=72,
-        bottomMargin=18
-    )
-
-    # Create styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=30,
-        textColor=colors.darkblue,
-        alignment=1  # Center alignment
-    )
-
-    story = []
-
-    def add_footer(canvas, doc):
-        """Add footer to each page."""
-        canvas.saveState()
-        canvas.setFont('Helvetica', 8)
-        canvas.drawString(
-            72,
-            30,
-            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Sample document generated from synthetic demo data. Not a production fairness audit. NYC LL144 requires an independent auditor."
-        )
-        canvas.restoreState()
 
     # Get decisions based on scope
     decisions = get_real_audit_decisions()
@@ -411,10 +336,6 @@ def generate_fairness_audit_pdf(decisions_scope: str, progress_callback=None) ->
                             if datetime.fromisoformat(d['timestamp']) > cutoff]
     else:  # All
         selected_decisions = decisions
-
-    # Fairness Audit Section Only
-    story.append(Paragraph("FAIRNESS AUDIT (NYC LL144)", title_style))
-    story.append(Spacer(1, 12))
 
     # Extract real metric values from benchmark.json
     gender_di = bench['fairness_metrics']['gender']['disparate_impact']['value']
@@ -436,9 +357,6 @@ def generate_fairness_audit_pdf(decisions_scope: str, progress_callback=None) ->
         "",
         "<b>Comparison Cohort:</b> All candidates evaluated in selected time period"
     ]
-
-    for item in fairness_content:
-        story.append(Paragraph(item, styles['Normal']))
 
     # Fairness metrics table with real benchmark.json values
     gender_eo = bench['fairness_metrics']['gender']['equalized_odds_gap']['value']
@@ -475,51 +393,17 @@ def generate_fairness_audit_pdf(decisions_scope: str, progress_callback=None) ->
         ('GRID', (0, 0), (-1, -1), 1, colors.black)
     ]))
 
-    story.append(fairness_table)
+    sections = [
+        {"type": "title", "content": "FAIRNESS AUDIT (NYC LL144)"},
+        {"type": "content", "content": fairness_content, "spacing": False},
+        {"type": "table", "content": fairness_table}
+    ]
 
-    # Build PDF
-    doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
-    buffer.seek(0)
-
-    return buffer
+    return _render_pdf(sections, "Sample document generated from synthetic demo data. Not a production fairness audit. NYC LL144 requires an independent auditor.")
 
 
 def generate_fcra_notice_pdf(decision_id: str, progress_callback=None) -> BytesIO:
     """Generate FCRA adverse action notice PDF for one specific decision."""
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=72,
-        leftMargin=72,
-        topMargin=72,
-        bottomMargin=18
-    )
-
-    # Create styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=30,
-        textColor=colors.darkblue,
-        alignment=1  # Center alignment
-    )
-
-    story = []
-
-    def add_footer(canvas, doc):
-        """Add footer to each page."""
-        canvas.saveState()
-        canvas.setFont('Helvetica', 8)
-        canvas.drawString(
-            72,
-            30,
-            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Sample document. Requires legal review before any production use. Bank's CRA contact information must be inserted."
-        )
-        canvas.restoreState()
-
     # Get decisions and find the specific one
     decisions = get_real_audit_decisions()
     target_decision = None
@@ -543,10 +427,6 @@ def generate_fcra_notice_pdf(decision_id: str, progress_callback=None) -> BytesI
                 'top_rule': 'Insufficient skill evidence',
                 'decision_id': decision_id
             }
-
-    # FCRA Notice Section Only
-    story.append(Paragraph("ADVERSE ACTION NOTICE", title_style))
-    story.append(Spacer(1, 12))
 
     fcra_content = [
         f"<b>Candidate:</b> {target_decision['candidate_name']}",
@@ -576,9 +456,58 @@ def generate_fcra_notice_pdf(decision_id: str, progress_callback=None) -> BytesI
         "To dispute this decision, contact: [BANK COMPLETES - HR Contact Information]"
     ]
 
-    for item in fcra_content:
-        story.append(Paragraph(item, styles['Normal']))
-        story.append(Spacer(1, 6))
+    sections = [
+        {"type": "title", "content": "ADVERSE ACTION NOTICE"},
+        {"type": "content", "content": fcra_content}
+    ]
+
+    return _render_pdf(sections, "Sample document. Requires legal review before any production use. Bank's CRA contact information must be inserted.")
+
+
+def _render_pdf(sections, footer_text: str) -> BytesIO:
+    """Shared PDF rendering helper to eliminate boilerplate."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,
+        bottomMargin=18
+    )
+
+    # Create styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        textColor=colors.darkblue,
+        alignment=1  # Center alignment
+    )
+
+    def add_footer(canvas, doc):
+        """Add footer to each page."""
+        canvas.saveState()
+        canvas.setFont('Helvetica', 8)
+        canvas.drawString(72, 30, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {footer_text}")
+        canvas.restoreState()
+
+    story = []
+
+    # Add sections to story
+    for section in sections:
+        if section['type'] == 'title':
+            story.append(Paragraph(section['content'], title_style))
+            story.append(Spacer(1, 12))
+        elif section['type'] == 'content':
+            for item in section['content']:
+                story.append(Paragraph(item, styles['Normal']))
+                if section.get('spacing', True):
+                    story.append(Spacer(1, 6))
+        elif section['type'] == 'table':
+            story.append(section['content'])
 
     # Build PDF
     doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
