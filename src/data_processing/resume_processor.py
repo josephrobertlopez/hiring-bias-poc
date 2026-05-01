@@ -87,21 +87,69 @@ class ResumeProcessor:
             }
         )
 
+    # Common English words to skip during fuzzy matching
+    _STOP_WORDS = {
+        'the', 'and', 'for', 'with', 'this', 'that', 'from', 'have', 'been',
+        'will', 'are', 'was', 'has', 'not', 'but', 'all', 'can', 'its', 'our',
+        'your', 'their', 'they', 'than', 'over', 'into', 'also', 'work', 'used',
+        'use', 'using', 'team', 'years', 'year', 'able', 'good', 'high', 'well',
+        'new', 'one', 'two', 'three', 'four', 'five', 'six', 'strong', 'about',
+    }
+
     def extract_skills(self, resume_text: str) -> List[str]:
-        """Extract skills from resume text using keyword matching."""
+        """Extract skills via exact regex match. Fast — used for training data."""
         if not isinstance(resume_text, str):
             return []
-
         text_lower = resume_text.lower()
-        found_skills = []
-
-        # Use word boundaries to avoid substring matches
+        found = []
         for skill in self.vocabulary.tokens:
             pattern = r'\b' + re.escape(skill.lower().replace(' ', r'\s+')) + r'\b'
             if re.search(pattern, text_lower):
-                found_skills.append(skill)
+                found.append(skill)
+        return found
 
-        return found_skills
+    def extract_skills_with_scores(self, resume_text: str, fuzzy_threshold: int = 82) -> Dict[str, dict]:
+        """Like extract_skills but returns {skill: {'method': 'exact'|'fuzzy', 'score': int}}."""
+        if not isinstance(resume_text, str):
+            return {}
+
+        text_lower = resume_text.lower()
+        result: Dict[str, dict] = {}
+
+        for skill in self.vocabulary.tokens:
+            pattern = r'\b' + re.escape(skill.lower().replace(' ', r'\s+')) + r'\b'
+            if re.search(pattern, text_lower):
+                result[skill] = {'method': 'exact', 'score': 100}
+
+        try:
+            from rapidfuzz import process as fz_process, fuzz as fz
+            found_lower = {s.lower() for s in result}
+            remaining = [s for s in self.vocabulary.tokens if s.lower() not in found_lower]
+            remaining_lower = [s.lower() for s in remaining]
+
+            words = re.findall(r'\b[\w][\w.+#]*\b', text_lower)
+            candidates = set(w for w in words if len(w) >= 2 and w not in self._STOP_WORDS)
+            for i in range(len(words) - 1):
+                candidates.add(f"{words[i]} {words[i+1]}")
+
+            candidates = list(candidates)
+            if candidates and remaining_lower:
+                scores = fz_process.cdist(
+                    candidates, remaining_lower,
+                    scorer=fz.ratio, score_cutoff=fuzzy_threshold,
+                )
+                import numpy as np
+                best_per_skill = scores.max(axis=0) if len(scores) else np.zeros(len(remaining_lower))
+                best_candidate_idx = scores.argmax(axis=0) if len(scores) else []
+                for i, best in enumerate(best_per_skill):
+                    if best >= fuzzy_threshold:
+                        matched_by = candidates[best_candidate_idx[i]] if len(best_candidate_idx) else '?'
+                        result[remaining[i]] = {'method': 'fuzzy', 'score': int(best),
+                                                'matched_by': matched_by}
+        except Exception:
+            pass
+
+        return result
 
     def extract_experience(self, resume_text: str) -> float:
         """Extract years of experience from resume text."""
